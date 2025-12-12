@@ -15,16 +15,16 @@ services:
       - "3001:3000"
     volumes:
       - ./backend:/app
+      - go_cache:/go/pkg/mod
     depends_on:
       - db
       - redis
     environment:
       - DATABASE_URL=postgres://postgres:password@db:5432/todo_next
-      - RAILS_ENV=development
-      - RAILS_MASTER_KEY=${RAILS_MASTER_KEY}
-      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-key-change-in-production}
+      - PORT=3000
+      - ENV=development
       - REDIS_URL=redis://redis:6379/0
-    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -p 3000 -b '0.0.0.0'"
 
   db:
     image: postgres:15
@@ -47,3 +47,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  go_cache:
