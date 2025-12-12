@@ -11,48 +11,48 @@
 ## Phase 0: 環境セットアップ
 
 ### プロジェクト初期化
-- [ ] `backend-go/` ディレクトリ作成
-- [ ] `go mod init todo-api` 実行
-- [ ] 依存パッケージインストール
-  - [ ] `github.com/labstack/echo/v4`
-  - [ ] `gorm.io/gorm`
-  - [ ] `gorm.io/driver/postgres`
-  - [ ] `github.com/go-playground/validator/v10`
-  - [ ] `github.com/golang-jwt/jwt/v5`
-  - [ ] `golang.org/x/crypto`
-  - [ ] `github.com/google/uuid`
-  - [ ] `github.com/joho/godotenv`
-  - [ ] `github.com/kelseyhightower/envconfig`
-  - [ ] `github.com/rs/zerolog`
-  - [ ] `github.com/stretchr/testify`
+- [x] `backend-go/` ディレクトリ作成
+- [x] `go mod init todo-api` 実行
+- [x] 依存パッケージインストール
+  - [x] `github.com/labstack/echo/v4`
+  - [x] `gorm.io/gorm`
+  - [x] `gorm.io/driver/postgres`
+  - [x] `github.com/go-playground/validator/v10`
+  - [x] `github.com/golang-jwt/jwt/v5`
+  - [x] `golang.org/x/crypto`
+  - [x] `github.com/google/uuid`
+  - [x] `github.com/joho/godotenv`
+  - [x] `github.com/kelseyhightower/envconfig`
+  - [x] `github.com/rs/zerolog`
+  - [x] `github.com/stretchr/testify`
 
 ### ディレクトリ構造作成
-- [ ] `cmd/api/main.go`
-- [ ] `internal/config/`
-- [ ] `internal/handler/`
-- [ ] `internal/middleware/`
-- [ ] `internal/model/`
-- [ ] `internal/repository/`
-- [ ] `internal/service/`
-- [ ] `internal/validator/`
-- [ ] `internal/errors/`
-- [ ] `pkg/response/`
-- [ ] `pkg/database/`
-- [ ] `db/migrations/`
+- [x] `cmd/api/main.go`
+- [x] `internal/config/`
+- [x] `internal/handler/`
+- [x] `internal/middleware/`
+- [x] `internal/model/`
+- [x] `internal/repository/`
+- [x] `internal/service/`
+- [x] `internal/validator/`
+- [x] `internal/errors/`
+- [x] `pkg/response/`
+- [x] `pkg/database/`
+- [x] `db/migrations/`
 
 ### Docker設定
-- [ ] `backend-go/Dockerfile` 作成
-- [ ] `compose.yml` に backend-go サービス追加
-- [ ] `.air.toml` ホットリロード設定
-- [ ] 環境変数ファイル設定
+- [x] `backend-go/Dockerfile` 作成
+- [x] `compose.yml` に backend-go サービス追加
+- [x] `.air.toml` ホットリロード設定
+- [x] 環境変数ファイル設定
 
 ### 基盤コード実装
-- [ ] `internal/config/config.go` - 設定読み込み
-- [ ] `pkg/database/database.go` - DB接続
-- [ ] `internal/errors/api_error.go` - エラー定義
-- [ ] `pkg/response/response.go` - レスポンスヘルパー
-- [ ] `internal/validator/validator.go` - バリデーション
-- [ ] `cmd/api/main.go` - エントリポイント（空のルーター）
+- [x] `internal/config/config.go` - 設定読み込み
+- [x] `pkg/database/database.go` - DB接続
+- [x] `internal/errors/api_error.go` - エラー定義
+- [x] `pkg/response/response.go` - レスポンスヘルパー
+- [x] `internal/validator/validator.go` - バリデーション
+- [x] `cmd/api/main.go` - エントリポイント（空のルーター）
 
 ---
 
