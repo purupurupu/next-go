@@ -1,0 +1,80 @@
+#.env
+#/backend/config/master.key
+
+# Project-wide ignores
+.env
+.DS_Store
+*.log
+*.swp
+.idea/
+.vscode/
+
+# Frontend ignores
+/frontend/node_modules/
+/frontend/.next/
+/frontend/out/
+/frontend/build/
+/frontend/.cache/
+/frontend/.env*.local
+/frontend/.vercel/
+
+# Backend ignores
+/backend/.bundle/
+/backend/log/*
+/backend/tmp/*
+!/backend/log/.keep
+!/backend/tmp/.keep
+/backend/storage/*
+!/backend/storage/.keep
+/backend/tmp/storage/*
+!/backend/tmp/storage/
+!/backend/tmp/storage/.keep
+/backend/public/assets
+/backend/.byebug_history
+
+# Ignore master key for decrypting credentials and more
+/backend/config/master.key
+
+# Ignore coverage reports
+/backend/coverage/
+
+# Ignore uploaded files in development
+/backend/storage/*
+!/backend/storage/.keep
+
+# Ignore Bundler config
+/backend/.bundle
+
+# Ignore all environment files (except templates)
+/backend/.env*
+!/backend/.env*.example
+
+# Ignore database dumps
+*.dump
+
+# Docker
+*.env
+.dockerignore
+
+# Ignore any compiled binaries
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Ignore package-lock.json for npm
+package-lock.json
+
+# Ignore yarn.lock for Yarn
+yarn.lock
+
+# Ignore .env files
+.env
+.env.*
+!.env.example
+
+# Ignore Coding Agent Files
+PLAN.md
+.serena/

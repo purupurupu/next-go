@@ -1,0 +1,136 @@
+plugins:
+  - rubocop-rails
+  - rubocop-rspec
+  - rubocop-performance
+
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - 'db/**/*'
+    - 'bin/**/*'
+    - 'config/**/*'
+    - 'vendor/**/*'
+    - 'tmp/**/*'
+    - 'log/**/*'
+    - 'public/**/*'
+    - 'spec/spec_helper.rb'
+    - 'spec/rails_helper.rb'
+    - 'node_modules/**/*'
+    # 新規追加
+    - 'lib/tasks/**/*'        # Rakeタスク
+    - 'spec/support/**/*'     # テストサポートファイル
+    - 'test/**/*'             # 未使用のテストフレームワーク
+
+# Style
+Style/Documentation:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+# Layout
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - 'spec/**/*'
+
+# Metrics
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'config/routes.rb'
+    - 'app/models/concerns/**/*'
+    - 'db/migrate/**/*'
+    - 'lib/tasks/**/*'
+
+Metrics/MethodLength:
+  Max: 30
+  Exclude:
+    - 'db/migrate/**/*'
+
+Metrics/ClassLength:
+  Max: 250
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/AbcSize:
+  Max: 40
+  Exclude:
+    - 'db/migrate/**/*'
+
+Metrics/CyclomaticComplexity:
+  Max: 10
+
+Metrics/PerceivedComplexity:
+  Max: 10
+
+Metrics/ParameterLists:
+  Max: 5
+  CountKeywordArgs: false
+
+# Rails
+Rails/SkipsModelValidations:
+  Exclude:
+    - 'spec/**/*'
+    - 'db/migrate/**/*'
+    - 'app/controllers/api/v1/todos_controller.rb'  # ポジション更新は同期的バリデーション不要
+
+Rails/Output:
+  Exclude:
+    - 'db/seeds.rb'
+
+# RSpec
+RSpec/ExampleLength:
+  Max: 25
+
+RSpec/MultipleExpectations:
+  Max: 10
+  Exclude:
+    - 'spec/requests/**/*'
+
+RSpec/NestedGroups:
+  Max: 4
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 15
+
+# 番号付きletを許可（テストの可読性のため）
+RSpec/IndexedLet:
+  Enabled: false
+
+# Contextの説明を柔軟に（日本語対応含む）
+RSpec/ContextWording:
+  Enabled: false
+
+# 複数のdescribeブロックを許可（関連するクラスをまとめてテスト）
+RSpec/MultipleDescribes:
+  Enabled: false
+
+# 日本語コメントを許可
+Style/AsciiComments:
+  Enabled: false
+
+# メソッドチェーンのmapを許可（読みやすさを優先）
+Performance/MapMethodChain:
+  Enabled: false
+
+# 一時的に無効化（段階的に対応）
+Lint/DuplicateBranch:
+  Enabled: false
+
+Rails/I18nLocaleTexts:
+  Enabled: false
+
+Rails/StrongParametersExpect:
+  Enabled: false
+
+Naming/PredicateMethod:
+  Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
