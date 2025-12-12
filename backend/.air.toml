@@ -1,0 +1,62 @@
+# Air configuration for hot reloading
+# https://github.com/air-verse/air
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Build command
+cmd = "go build -o ./tmp/main ./cmd/api"
+# Binary output
+bin = "./tmp/main"
+# Watch these extensions
+include_ext = ["go", "tpl", "tmpl", "html"]
+# Exclude these directories
+exclude_dir = ["assets", "tmp", "vendor", "testdata"]
+# Exclude files matching these patterns
+exclude_file = []
+# Exclude specific regex patterns
+exclude_regex = ["_test.go"]
+# Exclude unchanged files
+exclude_unchanged = false
+# Follow symlinks
+follow_symlink = false
+# Log directory
+log = "build-errors.log"
+# Poll interval in milliseconds (0 = use fsnotify)
+poll = false
+# Poll interval when poll is enabled
+poll_interval = 0
+# Stop running old binary when build errors occur
+stop_on_error = false
+# Send interrupt signal before killing process
+send_interrupt = false
+# Delay after sending interrupt signal (in milliseconds)
+kill_delay = 500
+# Rerun when build command exits with non-zero code
+rerun = false
+# Delay before rerunning (in milliseconds)
+rerun_delay = 500
+
+[color]
+# Customize colors for output
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[log]
+# Show log time
+time = false
+# Only show main log (errors, build info)
+main_only = false
+
+[misc]
+# Delete tmp directory on exit
+clean_on_exit = true
+
+[screen]
+# Keep scroll position when reloading
+clear_on_rebuild = false
+# Keep scroll position on close
+keep_scroll = true
