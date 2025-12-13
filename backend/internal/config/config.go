@@ -1,6 +1,8 @@
 package config
 
 import (
+	"strings"
+
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -18,6 +20,37 @@ type Config struct {
 
 	// Environment
 	Env string `envconfig:"ENV" default:"development"`
+
+	// CORS settings
+	CORSAllowOrigins string `envconfig:"CORS_ALLOW_ORIGINS" default:"http://localhost:3000"`
+	CORSMaxAge       int    `envconfig:"CORS_MAX_AGE" default:"86400"`
+}
+
+// GetCORSOrigins returns the CORS allowed origins as a slice
+func (c *Config) GetCORSOrigins() []string {
+	if c.CORSAllowOrigins == "*" {
+		return []string{"*"}
+	}
+	// Split by comma for multiple origins
+	origins := []string{}
+	for _, origin := range splitAndTrim(c.CORSAllowOrigins, ",") {
+		if origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+	return origins
+}
+
+// splitAndTrim splits a string by separator and trims whitespace
+func splitAndTrim(s, sep string) []string {
+	parts := []string{}
+	for _, part := range strings.Split(s, sep) {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
 }
 
 // Load reads configuration from environment variables
