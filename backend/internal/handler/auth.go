@@ -151,7 +151,7 @@ func (h *AuthHandler) SignOut(c echo.Context) error {
 		return errors.InternalError()
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"status": StatusResponse{
 			Code:    http.StatusOK,
 			Message: "Logged out successfully.",
