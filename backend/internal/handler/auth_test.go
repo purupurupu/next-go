@@ -11,63 +11,22 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
-	"todo-api/internal/config"
 	"todo-api/internal/handler"
 	"todo-api/internal/middleware"
-	"todo-api/internal/model"
 	"todo-api/internal/repository"
-	"todo-api/internal/validator"
+	"todo-api/internal/testutil"
 )
-
-// Test configuration
-var testConfig = &config.Config{
-	JWTSecret:          "test-secret-key-for-testing-purposes",
-	JWTExpirationHours: 24,
-}
-
-// setupTestDB creates a test database connection
-func setupTestDB(t *testing.T) *gorm.DB {
-	dsn := "host=localhost user=postgres password=password dbname=todo_next_test port=5432 sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	if err != nil {
-		t.Skip("Database not available, skipping test")
-	}
-
-	// Auto migrate models
-	err = db.AutoMigrate(&model.User{}, &model.JwtDenylist{})
-	require.NoError(t, err)
-
-	return db
-}
-
-// cleanupTestDB cleans up test data
-func cleanupTestDB(db *gorm.DB) {
-	db.Exec("DELETE FROM jwt_denylists")
-	db.Exec("DELETE FROM users")
-}
-
-// setupEcho creates an Echo instance for testing
-func setupEcho() *echo.Echo {
-	e := echo.New()
-	validator.SetupValidator(e)
-	return e
-}
 
 // TestSignUp_Success tests successful user registration
 func TestSignUp_Success(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	body := `{"user":{"email":"test@example.com","password":"password123","password_confirmation":"password123","name":"Test User"}}`
 	req := httptest.NewRequest(http.MethodPost, "/auth/sign_up", strings.NewReader(body))
@@ -82,28 +41,28 @@ func TestSignUp_Success(t *testing.T) {
 	assert.NotEmpty(t, rec.Header().Get("Authorization"))
 	assert.True(t, strings.HasPrefix(rec.Header().Get("Authorization"), "Bearer "))
 
-	var response map[string]interface{}
+	var response map[string]any
 	err = json.Unmarshal(rec.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	status := response["status"].(map[string]interface{})
+	status := response["status"].(map[string]any)
 	assert.Equal(t, float64(http.StatusCreated), status["code"])
 	assert.Equal(t, "Signed up successfully.", status["message"])
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Equal(t, "test@example.com", data["email"])
 	assert.Equal(t, "Test User", data["name"])
 }
 
 // TestSignUp_DuplicateEmail tests registration with duplicate email
 func TestSignUp_DuplicateEmail(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	// First registration
 	body := `{"user":{"email":"duplicate@example.com","password":"password123","password_confirmation":"password123","name":"First User"}}`
@@ -128,13 +87,13 @@ func TestSignUp_DuplicateEmail(t *testing.T) {
 
 // TestSignUp_ValidationError tests registration with validation errors
 func TestSignUp_ValidationError(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	tests := []struct {
 		name string
@@ -177,13 +136,13 @@ func TestSignUp_ValidationError(t *testing.T) {
 
 // TestSignUp_PasswordMismatch tests registration with password mismatch
 func TestSignUp_PasswordMismatch(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	body := `{"user":{"email":"test@example.com","password":"password123","password_confirmation":"differentpassword","name":"Test User"}}`
 	req := httptest.NewRequest(http.MethodPost, "/auth/sign_up", strings.NewReader(body))
@@ -197,13 +156,13 @@ func TestSignUp_PasswordMismatch(t *testing.T) {
 
 // TestSignIn_Success tests successful login
 func TestSignIn_Success(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	// First register a user
 	signUpBody := `{"user":{"email":"login@example.com","password":"password123","password_confirmation":"password123","name":"Login User"}}`
@@ -228,28 +187,28 @@ func TestSignIn_Success(t *testing.T) {
 	assert.NotEmpty(t, rec2.Header().Get("Authorization"))
 	assert.True(t, strings.HasPrefix(rec2.Header().Get("Authorization"), "Bearer "))
 
-	var response map[string]interface{}
+	var response map[string]any
 	err = json.Unmarshal(rec2.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	status := response["status"].(map[string]interface{})
+	status := response["status"].(map[string]any)
 	assert.Equal(t, float64(http.StatusOK), status["code"])
 	assert.Equal(t, "Logged in successfully.", status["message"])
 
-	data := response["data"].(map[string]interface{})
+	data := response["data"].(map[string]any)
 	assert.Equal(t, "login@example.com", data["email"])
 	assert.Equal(t, "Login User", data["name"])
 }
 
 // TestSignIn_InvalidCredentials tests login with wrong password
 func TestSignIn_InvalidCredentials(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	// First register a user
 	signUpBody := `{"user":{"email":"wrong@example.com","password":"password123","password_confirmation":"password123","name":"Wrong Password User"}}`
@@ -273,13 +232,13 @@ func TestSignIn_InvalidCredentials(t *testing.T) {
 
 // TestSignIn_NonExistentUser tests login with non-existent user
 func TestSignIn_NonExistentUser(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	signInBody := `{"user":{"email":"nonexistent@example.com","password":"password123"}}`
 	req := httptest.NewRequest(http.MethodPost, "/auth/sign_in", strings.NewReader(signInBody))
@@ -293,13 +252,13 @@ func TestSignIn_NonExistentUser(t *testing.T) {
 
 // TestSignOut_Success tests successful logout
 func TestSignOut_Success(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	// First register and get token
 	signUpBody := `{"user":{"email":"logout@example.com","password":"password123","password_confirmation":"password123","name":"Logout User"}}`
@@ -320,34 +279,34 @@ func TestSignOut_Success(t *testing.T) {
 	c2 := e.NewContext(req2, rec2)
 
 	// Set up JWT claims in context (simulating middleware)
-	authMiddleware := middleware.JWTAuth(testConfig, userRepo, denylistRepo)
-	handler := authMiddleware(func(c echo.Context) error {
+	authMiddleware := middleware.JWTAuth(testutil.TestConfig, userRepo, denylistRepo)
+	wrappedHandler := authMiddleware(func(c echo.Context) error {
 		return authHandler.SignOut(c)
 	})
 
-	err = handler(c2)
+	err = wrappedHandler(c2)
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, rec2.Code)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err = json.Unmarshal(rec2.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	status := response["status"].(map[string]interface{})
+	status := response["status"].(map[string]any)
 	assert.Equal(t, float64(http.StatusOK), status["code"])
 	assert.Equal(t, "Logged out successfully.", status["message"])
 }
 
 // TestSignOut_RevokedToken tests that revoked token cannot be used
 func TestSignOut_RevokedToken(t *testing.T) {
-	db := setupTestDB(t)
-	defer cleanupTestDB(db)
+	db := testutil.SetupTestDB(t)
+	defer testutil.CleanupTestDB(db)
 
-	e := setupEcho()
+	e := testutil.SetupEcho()
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
-	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testConfig)
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, testutil.TestConfig)
 
 	// Register and get token
 	signUpBody := `{"user":{"email":"revoked@example.com","password":"password123","password_confirmation":"password123","name":"Revoked User"}}`
@@ -367,11 +326,11 @@ func TestSignOut_RevokedToken(t *testing.T) {
 	rec2 := httptest.NewRecorder()
 	c2 := e.NewContext(req2, rec2)
 
-	authMiddlewareFunc := middleware.JWTAuth(testConfig, userRepo, denylistRepo)
-	handler := authMiddlewareFunc(func(c echo.Context) error {
+	authMiddlewareFunc := middleware.JWTAuth(testutil.TestConfig, userRepo, denylistRepo)
+	wrappedHandler := authMiddlewareFunc(func(c echo.Context) error {
 		return authHandler.SignOut(c)
 	})
-	err = handler(c2)
+	err = wrappedHandler(c2)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec2.Code)
 
@@ -384,6 +343,6 @@ func TestSignOut_RevokedToken(t *testing.T) {
 	rec3 := httptest.NewRecorder()
 	c3 := e.NewContext(req3, rec3)
 
-	err = handler(c3)
+	err = wrappedHandler(c3)
 	require.Error(t, err) // Should fail because token is revoked
 }
