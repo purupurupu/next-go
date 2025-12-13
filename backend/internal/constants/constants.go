@@ -2,12 +2,6 @@ package constants
 
 import "time"
 
-// Context keys for storing data in request context
-const (
-	CurrentUserKey = "current_user"
-	JWTClaimsKey   = "jwt_claims"
-)
-
 // Validation limits
 const (
 	MinPasswordLength = 6

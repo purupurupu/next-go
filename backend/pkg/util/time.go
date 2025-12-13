@@ -1,12 +1,9 @@
 package util
 
-import "time"
+import (
+	"time"
 
-// Common time formats
-const (
-	DateFormat     = "2006-01-02"
-	DateTimeFormat = "2006-01-02T15:04:05Z"
-	RFC3339Format  = time.RFC3339
+	"todo-api/internal/constants"
 )
 
 // FormatDate formats a time.Time pointer to a date string (YYYY-MM-DD).
@@ -15,18 +12,18 @@ func FormatDate(t *time.Time) *string {
 	if t == nil {
 		return nil
 	}
-	s := t.Format(DateFormat)
+	s := t.Format(constants.DateFormat)
 	return &s
 }
 
 // FormatDateTime formats a time.Time to a datetime string (ISO 8601).
 func FormatDateTime(t time.Time) string {
-	return t.Format(DateTimeFormat)
+	return t.Format(constants.DateTimeFormat)
 }
 
 // FormatRFC3339 formats a time.Time to RFC3339 format.
 func FormatRFC3339(t time.Time) string {
-	return t.Format(RFC3339Format)
+	return t.Format(time.RFC3339)
 }
 
 // ParseDate parses a date string (YYYY-MM-DD) to time.Time.
@@ -35,7 +32,7 @@ func ParseDate(s string) (*time.Time, error) {
 	if s == "" {
 		return nil, nil
 	}
-	t, err := time.Parse(DateFormat, s)
+	t, err := time.Parse(constants.DateFormat, s)
 	if err != nil {
 		return nil, err
 	}
