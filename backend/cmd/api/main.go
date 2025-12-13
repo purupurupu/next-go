@@ -16,6 +16,10 @@ import (
 
 	"todo-api/internal/config"
 	"todo-api/internal/errors"
+	"todo-api/internal/handler"
+	authMiddleware "todo-api/internal/middleware"
+	"todo-api/internal/model"
+	"todo-api/internal/repository"
 	"todo-api/internal/validator"
 	"todo-api/pkg/database"
 )
@@ -42,6 +46,14 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 	defer database.Close(db)
+
+	// Auto migrate models (development only)
+	if cfg.IsDevelopment() {
+		if err := db.AutoMigrate(&model.User{}, &model.JwtDenylist{}); err != nil {
+			log.Fatal().Err(err).Msg("Failed to auto migrate models")
+		}
+		log.Info().Msg("Database models migrated")
+	}
 
 	// Initialize Echo
 	e := echo.New()
@@ -75,9 +87,21 @@ func main() {
 		})
 	})
 
-	// TODO: Add routes here (Phase 1+)
-	// Auth routes: /auth/sign_up, /auth/sign_in, /auth/sign_out
-	// API v1 routes: /api/v1/todos, /api/v1/categories, /api/v1/tags, etc.
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(db)
+	denylistRepo := repository.NewJwtDenylistRepository(db)
+
+	// Initialize handlers
+	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, cfg)
+
+	// Auth routes (public)
+	auth := e.Group("/auth")
+	auth.POST("/sign_up", authHandler.SignUp)
+	auth.POST("/sign_in", authHandler.SignIn)
+	auth.DELETE("/sign_out", authHandler.SignOut, authMiddleware.JWTAuth(cfg, userRepo, denylistRepo))
+
+	// API v1 routes (protected) - will be added in Phase 2+
+	// api := e.Group("/api/v1", authMiddleware.JWTAuth(cfg, userRepo, denylistRepo))
 
 	// Log startup information
 	log.Info().
