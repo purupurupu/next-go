@@ -112,49 +112,49 @@
 
 ---
 
-## Phase 2: User・Todo基本CRUD（最優先）
+## Phase 2: User・Todo基本CRUD（最優先） ✅ 完了
 
 ### モデル
-- [ ] `internal/model/todo.go`
-  - [ ] Todo構造体定義
-  - [ ] Priority enum (0:low, 1:medium, 2:high)
-  - [ ] Status enum (0:pending, 1:in_progress, 2:completed)
-  - [ ] `BeforeCreate()` - position自動設定
-  - [ ] リレーション定義（User, Category, Tags）
+- [x] `internal/model/todo.go`
+  - [x] Todo構造体定義
+  - [x] Priority enum (0:low, 1:medium, 2:high)
+  - [x] Status enum (0:pending, 1:in_progress, 2:completed)
+  - [x] `BeforeCreate()` - position自動設定
+  - [x] リレーション定義（User, Category, Tags）
 
 ### Repository
-- [ ] `internal/repository/todo.go`
-  - [ ] `FindAllByUserID(userID int64)` - 一覧取得
-  - [ ] `FindByID(id, userID int64)` - 詳細取得
-  - [ ] `Create(todo *model.Todo)` - 作成
-  - [ ] `Update(todo *model.Todo)` - 更新
-  - [ ] `Delete(id, userID int64)` - 削除
-  - [ ] `UpdateOrder(updates []OrderUpdate)` - 順序更新
+- [x] `internal/repository/todo.go`
+  - [x] `FindAllByUserID(userID int64)` - 一覧取得
+  - [x] `FindByID(id, userID int64)` - 詳細取得
+  - [x] `Create(todo *model.Todo)` - 作成
+  - [x] `Update(todo *model.Todo)` - 更新
+  - [x] `Delete(id, userID int64)` - 削除
+  - [x] `UpdateOrder(updates []OrderUpdate)` - 順序更新
 
 ### Handler
-- [ ] `internal/handler/todo.go`
-  - [ ] `GET /api/v1/todos` - 一覧取得
-  - [ ] `POST /api/v1/todos` - 作成
-  - [ ] `GET /api/v1/todos/:id` - 詳細取得
-  - [ ] `PATCH /api/v1/todos/:id` - 更新
-  - [ ] `DELETE /api/v1/todos/:id` - 削除
-  - [ ] `PATCH /api/v1/todos/update_order` - 順序一括更新
+- [x] `internal/handler/todo.go`
+  - [x] `GET /api/v1/todos` - 一覧取得
+  - [x] `POST /api/v1/todos` - 作成
+  - [x] `GET /api/v1/todos/:id` - 詳細取得
+  - [x] `PATCH /api/v1/todos/:id` - 更新
+  - [x] `DELETE /api/v1/todos/:id` - 削除
+  - [x] `PATCH /api/v1/todos/update_order` - 順序一括更新
 
 ### バリデーション
-- [ ] title: 必須
-- [ ] priority: 0-2の範囲
-- [ ] status: 0-2の範囲
-- [ ] due_date: 過去日付禁止（作成時）
+- [x] title: 必須
+- [x] priority: 0-2の範囲
+- [x] status: 0-2の範囲
+- [x] due_date: 過去日付禁止（作成時）
 
 ### ユーザースコープ
-- [ ] 全クエリに `user_id = ?` 条件追加
-- [ ] 他ユーザーのTodoにアクセス不可を確認
+- [x] 全クエリに `user_id = ?` 条件追加
+- [x] 他ユーザーのTodoにアクセス不可を確認
 
 ### テスト
-- [ ] CRUD全操作テスト
-- [ ] ユーザースコープテスト（他ユーザーデータアクセス拒否）
-- [ ] バリデーションエラーテスト
-- [ ] 順序更新テスト
+- [x] CRUD全操作テスト
+- [x] ユーザースコープテスト（他ユーザーデータアクセス拒否）
+- [x] バリデーションエラーテスト
+- [x] 順序更新テスト
 
 ### フロントエンド統合確認
 - [ ] Todo一覧表示
