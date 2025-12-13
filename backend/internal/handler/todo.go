@@ -2,18 +2,16 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 
 	"todo-api/internal/errors"
-	"todo-api/internal/middleware"
 	"todo-api/internal/model"
 	"todo-api/internal/repository"
-	"todo-api/internal/validator"
 	"todo-api/pkg/response"
+	"todo-api/pkg/util"
 )
 
 // TodoHandler handles todo-related endpoints
@@ -107,13 +105,9 @@ func toTodoResponse(todo *model.Todo) TodoResponse {
 		Position:    todo.Position,
 		Priority:    int(todo.Priority),
 		Status:      int(todo.Status),
-		CreatedAt:   todo.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   todo.UpdatedAt.Format(time.RFC3339),
-	}
-
-	if todo.DueDate != nil {
-		dueDate := todo.DueDate.Format("2006-01-02")
-		resp.DueDate = &dueDate
+		DueDate:     util.FormatDate(todo.DueDate),
+		CreatedAt:   util.FormatRFC3339(todo.CreatedAt),
+		UpdatedAt:   util.FormatRFC3339(todo.UpdatedAt),
 	}
 
 	if todo.Category != nil {
@@ -141,9 +135,9 @@ func toTodoResponse(todo *model.Todo) TodoResponse {
 // List retrieves all todos for the authenticated user
 // GET /api/v1/todos
 func (h *TodoHandler) List(c echo.Context) error {
-	currentUser := middleware.GetCurrentUser(c)
-	if currentUser == nil {
-		return errors.AuthenticationFailed("User not authenticated")
+	currentUser, err := GetCurrentUserOrFail(c)
+	if err != nil {
+		return err
 	}
 
 	todos, err := h.todoRepo.FindAllByUserIDWithRelations(currentUser.ID)
@@ -157,7 +151,7 @@ func (h *TodoHandler) List(c echo.Context) error {
 		todoResponses[i] = toTodoResponse(&todo)
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"todos": todoResponses,
 	})
 }
@@ -165,17 +159,14 @@ func (h *TodoHandler) List(c echo.Context) error {
 // Show retrieves a specific todo by ID
 // GET /api/v1/todos/:id
 func (h *TodoHandler) Show(c echo.Context) error {
-	currentUser := middleware.GetCurrentUser(c)
-	if currentUser == nil {
-		return errors.AuthenticationFailed("User not authenticated")
+	currentUser, err := GetCurrentUserOrFail(c)
+	if err != nil {
+		return err
 	}
 
-	// Parse todo ID from path
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := ParseIDParam(c, "id")
 	if err != nil {
-		return errors.ValidationFailed(map[string][]string{
-			"id": {"Invalid todo ID"},
-		})
+		return err
 	}
 
 	todo, err := h.todoRepo.FindByIDWithRelations(id, currentUser.ID)
@@ -186,7 +177,7 @@ func (h *TodoHandler) Show(c echo.Context) error {
 		return errors.InternalError()
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"todo": toTodoResponse(todo),
 	})
 }
@@ -194,21 +185,14 @@ func (h *TodoHandler) Show(c echo.Context) error {
 // Create creates a new todo
 // POST /api/v1/todos
 func (h *TodoHandler) Create(c echo.Context) error {
-	currentUser := middleware.GetCurrentUser(c)
-	if currentUser == nil {
-		return errors.AuthenticationFailed("User not authenticated")
+	currentUser, err := GetCurrentUserOrFail(c)
+	if err != nil {
+		return err
 	}
 
 	var req CreateTodoRequest
-	if err := c.Bind(&req); err != nil {
-		return errors.ValidationFailed(map[string][]string{
-			"body": {"Invalid request body"},
-		})
-	}
-
-	// Validate request
-	if err := c.Validate(req); err != nil {
-		return errors.ValidationFailed(validator.FormatValidationErrors(err))
+	if err := BindAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	// Validate category ownership if provided
@@ -227,20 +211,18 @@ func (h *TodoHandler) Create(c echo.Context) error {
 	// Parse due date if provided
 	var dueDate *time.Time
 	if req.Todo.DueDate != nil && *req.Todo.DueDate != "" {
-		parsed, err := time.Parse("2006-01-02", *req.Todo.DueDate)
+		dueDate, err = util.ParseDate(*req.Todo.DueDate)
 		if err != nil {
 			return errors.ValidationFailed(map[string][]string{
 				"due_date": {"Invalid date format. Use YYYY-MM-DD"},
 			})
 		}
 		// Check if due date is in the past (only for creation)
-		today := time.Now().Truncate(24 * time.Hour)
-		if parsed.Before(today) {
+		if util.IsBeforeToday(*dueDate) {
 			return errors.ValidationFailed(map[string][]string{
 				"due_date": {"Due date cannot be in the past"},
 			})
 		}
-		dueDate = &parsed
 	}
 
 	// Create todo
@@ -272,12 +254,12 @@ func (h *TodoHandler) Create(c echo.Context) error {
 	}
 
 	// Reload to get auto-generated position
-	todo, err := h.todoRepo.FindByIDWithRelations(todo.ID, currentUser.ID)
+	todo, err = h.todoRepo.FindByIDWithRelations(todo.ID, currentUser.ID)
 	if err != nil {
 		return errors.InternalError()
 	}
 
-	return response.Created(c, map[string]interface{}{
+	return response.Created(c, map[string]any{
 		"todo": toTodoResponse(todo),
 	}, "Todo created successfully")
 }
@@ -285,17 +267,14 @@ func (h *TodoHandler) Create(c echo.Context) error {
 // Update updates an existing todo
 // PATCH /api/v1/todos/:id
 func (h *TodoHandler) Update(c echo.Context) error {
-	currentUser := middleware.GetCurrentUser(c)
-	if currentUser == nil {
-		return errors.AuthenticationFailed("User not authenticated")
+	currentUser, err := GetCurrentUserOrFail(c)
+	if err != nil {
+		return err
 	}
 
-	// Parse todo ID from path
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := ParseIDParam(c, "id")
 	if err != nil {
-		return errors.ValidationFailed(map[string][]string{
-			"id": {"Invalid todo ID"},
-		})
+		return err
 	}
 
 	// Get existing todo
@@ -308,15 +287,8 @@ func (h *TodoHandler) Update(c echo.Context) error {
 	}
 
 	var req UpdateTodoRequest
-	if err := c.Bind(&req); err != nil {
-		return errors.ValidationFailed(map[string][]string{
-			"body": {"Invalid request body"},
-		})
-	}
-
-	// Validate request
-	if err := c.Validate(req); err != nil {
-		return errors.ValidationFailed(validator.FormatValidationErrors(err))
+	if err := BindAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	// Apply updates
@@ -369,17 +341,13 @@ func (h *TodoHandler) Update(c echo.Context) error {
 	}
 
 	if req.Todo.DueDate != nil {
-		if *req.Todo.DueDate == "" {
-			todo.DueDate = nil
-		} else {
-			parsed, err := time.Parse("2006-01-02", *req.Todo.DueDate)
-			if err != nil {
-				return errors.ValidationFailed(map[string][]string{
-					"due_date": {"Invalid date format. Use YYYY-MM-DD"},
-				})
-			}
-			todo.DueDate = &parsed
+		dueDate, err := util.ParseDate(*req.Todo.DueDate)
+		if err != nil {
+			return errors.ValidationFailed(map[string][]string{
+				"due_date": {"Invalid date format. Use YYYY-MM-DD"},
+			})
 		}
+		todo.DueDate = dueDate
 	}
 
 	if req.Todo.Position != nil {
@@ -396,7 +364,7 @@ func (h *TodoHandler) Update(c echo.Context) error {
 		return errors.InternalError()
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"todo": toTodoResponse(todo),
 	})
 }
@@ -404,17 +372,14 @@ func (h *TodoHandler) Update(c echo.Context) error {
 // Delete removes a todo
 // DELETE /api/v1/todos/:id
 func (h *TodoHandler) Delete(c echo.Context) error {
-	currentUser := middleware.GetCurrentUser(c)
-	if currentUser == nil {
-		return errors.AuthenticationFailed("User not authenticated")
+	currentUser, err := GetCurrentUserOrFail(c)
+	if err != nil {
+		return err
 	}
 
-	// Parse todo ID from path
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := ParseIDParam(c, "id")
 	if err != nil {
-		return errors.ValidationFailed(map[string][]string{
-			"id": {"Invalid todo ID"},
-		})
+		return err
 	}
 
 	if err := h.todoRepo.Delete(id, currentUser.ID); err != nil {
@@ -430,21 +395,14 @@ func (h *TodoHandler) Delete(c echo.Context) error {
 // UpdateOrder updates the positions of multiple todos
 // PATCH /api/v1/todos/update_order
 func (h *TodoHandler) UpdateOrder(c echo.Context) error {
-	currentUser := middleware.GetCurrentUser(c)
-	if currentUser == nil {
-		return errors.AuthenticationFailed("User not authenticated")
+	currentUser, err := GetCurrentUserOrFail(c)
+	if err != nil {
+		return err
 	}
 
 	var req UpdateOrderRequest
-	if err := c.Bind(&req); err != nil {
-		return errors.ValidationFailed(map[string][]string{
-			"body": {"Invalid request body"},
-		})
-	}
-
-	// Validate request
-	if err := c.Validate(req); err != nil {
-		return errors.ValidationFailed(validator.FormatValidationErrors(err))
+	if err := BindAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	// Convert to repository format
