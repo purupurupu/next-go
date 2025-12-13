@@ -77,14 +77,14 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	// CORS configuration
+	// CORS configuration (from environment)
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     cfg.GetCORSOrigins(),
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 		ExposeHeaders:    []string{echo.HeaderAuthorization},
 		AllowCredentials: true,
-		MaxAge:           86400,
+		MaxAge:           cfg.CORSMaxAge,
 	}))
 
 	// Health check endpoint
