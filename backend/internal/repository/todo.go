@@ -87,7 +87,7 @@ func (r *TodoRepository) Update(todo *model.Todo) error {
 }
 
 // UpdateFields updates specific fields of a todo
-func (r *TodoRepository) UpdateFields(id, userID int64, updates map[string]interface{}) error {
+func (r *TodoRepository) UpdateFields(id, userID int64, updates map[string]any) error {
 	result := r.db.Model(&model.Todo{}).
 		Where("id = ? AND user_id = ?", id, userID).
 		Updates(updates)
