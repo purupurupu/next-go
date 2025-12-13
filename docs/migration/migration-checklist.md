@@ -56,56 +56,56 @@
 
 ---
 
-## Phase 1: 認証システム（最優先）
+## Phase 1: 認証システム（最優先） ✅ 完了
 
 ### モデル
-- [ ] `internal/model/user.go`
-  - [ ] User構造体定義
-  - [ ] `SetPassword()` bcryptハッシュ化
-  - [ ] `CheckPassword()` パスワード検証
-  - [ ] `TableName()` テーブル名設定
-- [ ] `internal/model/jwt_denylist.go`
-  - [ ] JwtDenylist構造体定義
-  - [ ] `IsRevoked()` トークン無効化チェック
+- [x] `internal/model/user.go`
+  - [x] User構造体定義
+  - [x] `SetPassword()` bcryptハッシュ化
+  - [x] `CheckPassword()` パスワード検証
+  - [x] `TableName()` テーブル名設定
+- [x] `internal/model/jwt_denylist.go`
+  - [x] JwtDenylist構造体定義
+  - [x] `IsRevoked()` トークン無効化チェック
 
 ### Repository
-- [ ] `internal/repository/user.go`
-  - [ ] `FindByEmail(email string)` - メールでユーザー検索
-  - [ ] `Create(user *model.User)` - ユーザー作成
-  - [ ] `FindByID(id int64)` - ID検索
-- [ ] `internal/repository/jwt_denylist.go`
-  - [ ] `Add(jti string, exp time.Time)` - トークン無効化登録
-  - [ ] `Exists(jti string)` - 無効化チェック
+- [x] `internal/repository/user.go`
+  - [x] `FindByEmail(email string)` - メールでユーザー検索
+  - [x] `Create(user *model.User)` - ユーザー作成
+  - [x] `FindByID(id int64)` - ID検索
+- [x] `internal/repository/jwt_denylist.go`
+  - [x] `Add(jti string, exp time.Time)` - トークン無効化登録
+  - [x] `Exists(jti string)` - 無効化チェック
 
 ### Service
-- [ ] `internal/service/auth.go`
-  - [ ] `SignUp(email, password, name)` - ユーザー登録
-  - [ ] `SignIn(email, password)` - ログイン
-  - [ ] `SignOut(jti string)` - ログアウト
-  - [ ] `GenerateToken(user *model.User)` - JWT生成
-  - [ ] `ValidateToken(token string)` - JWT検証
+- [x] `internal/service/auth.go`
+  - [x] `SignUp(email, password, name)` - ユーザー登録
+  - [x] `SignIn(email, password)` - ログイン
+  - [x] `SignOut(jti string)` - ログアウト
+  - [x] `GenerateToken(user *model.User)` - JWT生成
+  - [x] `ValidateToken(token string)` - JWT検証
 
 ### Middleware
-- [ ] `internal/middleware/auth.go`
-  - [ ] `JWTAuth()` - JWT認証ミドルウェア
-  - [ ] `GetCurrentUser(c echo.Context)` - 現在のユーザー取得
-  - [ ] jwt_denylistチェック統合
+- [x] `internal/middleware/auth.go`
+  - [x] `JWTAuth()` - JWT認証ミドルウェア
+  - [x] `GetCurrentUser(c echo.Context)` - 現在のユーザー取得
+  - [x] jwt_denylistチェック統合
 
 ### Handler
-- [ ] `internal/handler/auth.go`
-  - [ ] `POST /auth/sign_up` - 新規登録
-  - [ ] `POST /auth/sign_in` - ログイン
-  - [ ] `DELETE /auth/sign_out` - ログアウト
+- [x] `internal/handler/auth.go`
+  - [x] `POST /auth/sign_up` - 新規登録
+  - [x] `POST /auth/sign_in` - ログイン
+  - [x] `DELETE /auth/sign_out` - ログアウト
 
 ### CORS設定
-- [ ] `Origin: http://localhost:3000`
-- [ ] `Credentials: true`
-- [ ] `Expose: Authorization`
+- [x] `Origin: http://localhost:3000`
+- [x] `Credentials: true`
+- [x] `Expose: Authorization`
 
 ### テスト
-- [ ] 登録テスト（成功・重複エラー・バリデーションエラー）
-- [ ] ログインテスト（成功・認証エラー）
-- [ ] ログアウトテスト（成功・トークン無効化確認）
+- [x] 登録テスト（成功・重複エラー・バリデーションエラー）
+- [x] ログインテスト（成功・認証エラー）
+- [x] ログアウトテスト（成功・トークン無効化確認）
 
 ### フロントエンド統合確認
 - [ ] 登録→ログイン→ログアウトフロー動作確認
