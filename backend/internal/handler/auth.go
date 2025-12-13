@@ -10,7 +10,7 @@ import (
 	"todo-api/internal/middleware"
 	"todo-api/internal/repository"
 	"todo-api/internal/service"
-	"todo-api/internal/validator"
+	"todo-api/pkg/util"
 )
 
 // AuthHandler handles authentication endpoints
@@ -71,15 +71,8 @@ type StatusResponse struct {
 // POST /auth/sign_up
 func (h *AuthHandler) SignUp(c echo.Context) error {
 	var req SignUpRequest
-	if err := c.Bind(&req); err != nil {
-		return errors.ValidationFailed(map[string][]string{
-			"body": {"Invalid request body"},
-		})
-	}
-
-	// Validate request
-	if err := c.Validate(req); err != nil {
-		return errors.ValidationFailed(validator.FormatValidationErrors(err))
+	if err := BindAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	// Register user
@@ -96,12 +89,6 @@ func (h *AuthHandler) SignUp(c echo.Context) error {
 	// Set Authorization header
 	c.Response().Header().Set("Authorization", "Bearer "+token)
 
-	// Build response
-	name := ""
-	if user.Name != nil {
-		name = *user.Name
-	}
-
 	response := AuthResponse{
 		Status: StatusResponse{
 			Code:    http.StatusCreated,
@@ -110,8 +97,8 @@ func (h *AuthHandler) SignUp(c echo.Context) error {
 		Data: AuthResponseData{
 			ID:        user.ID,
 			Email:     user.Email,
-			Name:      name,
-			CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			Name:      util.DerefString(user.Name, ""),
+			CreatedAt: util.FormatDateTime(user.CreatedAt),
 		},
 	}
 
@@ -122,15 +109,8 @@ func (h *AuthHandler) SignUp(c echo.Context) error {
 // POST /auth/sign_in
 func (h *AuthHandler) SignIn(c echo.Context) error {
 	var req SignInRequest
-	if err := c.Bind(&req); err != nil {
-		return errors.ValidationFailed(map[string][]string{
-			"body": {"Invalid request body"},
-		})
-	}
-
-	// Validate request
-	if err := c.Validate(req); err != nil {
-		return errors.ValidationFailed(validator.FormatValidationErrors(err))
+	if err := BindAndValidate(c, &req); err != nil {
+		return err
 	}
 
 	// Authenticate user
@@ -142,12 +122,6 @@ func (h *AuthHandler) SignIn(c echo.Context) error {
 	// Set Authorization header
 	c.Response().Header().Set("Authorization", "Bearer "+token)
 
-	// Build response
-	name := ""
-	if user.Name != nil {
-		name = *user.Name
-	}
-
 	response := AuthResponse{
 		Status: StatusResponse{
 			Code:    http.StatusOK,
@@ -156,8 +130,8 @@ func (h *AuthHandler) SignIn(c echo.Context) error {
 		Data: AuthResponseData{
 			ID:        user.ID,
 			Email:     user.Email,
-			Name:      name,
-			CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			Name:      util.DerefString(user.Name, ""),
+			CreatedAt: util.FormatDateTime(user.CreatedAt),
 		},
 	}
 
@@ -177,7 +151,7 @@ func (h *AuthHandler) SignOut(c echo.Context) error {
 		return errors.InternalError()
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"status": StatusResponse{
 			Code:    http.StatusOK,
 			Message: "Logged out successfully.",

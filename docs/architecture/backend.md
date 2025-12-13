@@ -1,408 +1,345 @@
-# Backend Architecture
+# Backend Architecture (Go)
 
 ## Technology Stack
 
-- **Framework**: Ruby on Rails 7.1.3+ (API-only mode)
-- **Language**: Ruby 3.2.5
+- **Language**: Go 1.25
+- **Framework**: Echo v4 (Web framework)
+- **ORM**: GORM
 - **Database**: PostgreSQL 15
-- **Web Server**: Puma
-- **Authentication**: Devise + Devise-JWT
-- **Background Jobs**: Sidekiq with Redis
-- **Testing**: RSpec, FactoryBot, Faker
-
-## Key Gems
-
-### Core
-- `rails ~> 7.1.3` - Web framework
-- `pg ~> 1.1` - PostgreSQL adapter
-- `puma >= 5.0` - Web server
-- `rack-cors` - CORS handling
-- `bootsnap` - Boot time optimization
-
-### Authentication & Security
-- `devise` - Authentication solution
-- `devise-jwt` - JWT token authentication
-
-### API & Serialization
-- `active_model_serializers ~> 0.10.0` - JSON serialization
-
-### Background Processing
-- `sidekiq` - Background job processing
-- `redis >= 4.0.1` - In-memory data store
-
-### Development & Testing
-- `rspec-rails` - Testing framework
-- `factory_bot_rails` - Test data factories
-- `faker` - Fake data generation
-- `shoulda-matchers` - RSpec matchers
-- `database_cleaner-active_record` - Test database cleaning
+- **Cache**: Redis 7
+- **Authentication**: JWT (golang-jwt/jwt v5)
+- **Validation**: go-playground/validator v10
+- **Logging**: zerolog
+- **Hot Reload**: Air (development)
 
 ## Directory Structure
 
 ```
 backend/
-├── app/
-│   ├── controllers/
-│   │   ├── api/
-│   │   │   └── v1/
-│   │   │       ├── todos_controller.rb     # Todo CRUD endpoints + search
-│   │   │       ├── categories_controller.rb # Category CRUD endpoints
-│   │   │       ├── tags_controller.rb      # Tag CRUD endpoints
-│   │   │       ├── comments_controller.rb  # Comment CRUD endpoints
-│   │   │       └── todo_histories_controller.rb # History viewing
-│   │   ├── users/
-│   │   │   ├── sessions_controller.rb  # Login/logout
-│   │   │   └── registrations_controller.rb # Signup
-│   │   ├── concerns/
-│   │   │   └── api_response_formatter.rb # Unified API response formatting
-│   │   └── application_controller.rb   # Base controller with unified error handling
-│   ├── models/
-│   │   ├── user.rb                     # User model with Devise
-│   │   ├── todo.rb                     # Todo model with associations & file attachments
-│   │   ├── category.rb                 # Category model with counter_cache
-│   │   ├── tag.rb                      # Tag model for flexible labeling
-│   │   ├── todo_tag.rb                 # Junction table for todo-tag relationship
-│   │   ├── comment.rb                  # Polymorphic comments with soft delete
-│   │   ├── todo_history.rb             # Audit trail for todo changes
-│   │   └── jwt_denylist.rb             # JWT revocation
-│   ├── serializers/
-│   │   ├── user_serializer.rb          # User JSON serialization
-│   │   ├── todo_serializer.rb          # Todo JSON serialization
-│   │   ├── category_serializer.rb      # Category JSON serialization
-│   │   ├── tag_serializer.rb           # Tag JSON serialization
-│   │   ├── comment_serializer.rb       # Comment JSON serialization
-│   │   └── todo_history_serializer.rb  # History JSON serialization
-│   └── services/                       # Business logic services
-│       └── todo_search_service.rb      # Advanced search implementation
-├── config/
-│   ├── routes.rb                       # API routes
-│   ├── initializers/
-│   │   ├── cors.rb                     # CORS configuration
-│   │   ├── devise.rb                   # Devise settings
-│   │   └── sidekiq.rb                  # Background jobs
-│   └── database.yml                    # Database configuration
-├── db/
-│   ├── migrate/                        # Database migrations
-│   └── schema.rb                       # Current schema
-└── spec/                               # Test suite
-    ├── models/                         # Model tests
-    ├── requests/                       # API tests
-    └── factories/                      # Test factories
+├── cmd/api/
+│   └── main.go                 # エントリポイント、サーバー設定
+├── internal/
+│   ├── config/
+│   │   └── config.go           # 環境変数からの設定読み込み
+│   ├── constants/
+│   │   └── constants.go        # 定数の一元管理
+│   ├── handler/
+│   │   ├── auth.go             # 認証ハンドラ
+│   │   ├── todo.go             # Todo CRUD
+│   │   └── helpers.go          # 共通ヘルパー関数
+│   ├── middleware/
+│   │   └── auth.go             # JWT認証ミドルウェア
+│   ├── model/
+│   │   ├── user.go             # Userモデル
+│   │   ├── todo.go             # Todoモデル
+│   │   ├── category.go         # Categoryモデル
+│   │   ├── tag.go              # Tagモデル
+│   │   └── jwt_denylist.go     # JWTトークン無効化リスト
+│   ├── repository/
+│   │   ├── interfaces.go       # リポジトリインターフェース定義
+│   │   ├── user.go             # Userリポジトリ
+│   │   ├── todo.go             # Todoリポジトリ
+│   │   └── jwt_denylist.go     # JWT Denylistリポジトリ
+│   ├── service/
+│   │   └── auth.go             # 認証サービス（ビジネスロジック）
+│   ├── testutil/
+│   │   ├── fixture.go          # TestFixtureパターン
+│   │   └── assertions.go       # テスト用アサーション
+│   ├── validator/
+│   │   └── validator.go        # カスタムバリデーション
+│   └── errors/
+│       └── api_error.go        # APIエラーハンドリング
+└── pkg/
+    ├── database/
+    │   └── database.go         # DB接続管理
+    ├── response/
+    │   └── response.go         # 統一レスポンス形式
+    └── util/
+        ├── pointers.go         # ポインタユーティリティ
+        └── time.go             # 時間ユーティリティ
 ```
 
-## Authentication Architecture
+---
+
+## Architecture Design Decisions
+
+### レイヤードアーキテクチャ
+
+本プロジェクトでは3層アーキテクチャを採用しています：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Handler (Presentation Layer)                                │
+│  - HTTPリクエスト/レスポンス処理                              │
+│  - リクエストのバインド・バリデーション                        │
+│  - 認証情報の取得                                            │
+│  - レスポンスの整形                                          │
+├─────────────────────────────────────────────────────────────┤
+│  Service (Business Logic Layer)                              │
+│  - ドメインルールの実装                                       │
+│  - トランザクション管理                                       │
+│  - 複数リポジトリの調整                                       │
+│  - 外部サービスとの連携                                       │
+├─────────────────────────────────────────────────────────────┤
+│  Repository (Data Access Layer)                              │
+│  - データベース操作                                          │
+│  - クエリ実行                                                │
+│  - データの永続化                                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Service層の使用方針
+
+**Service層を使用するケース（推奨）:**
+- 複雑なビジネスロジックがある場合
+- 複数リポジトリをまたぐトランザクション処理
+- 外部サービスとの連携（メール送信、通知など）
+- ドメインルールの実装（例：パスワードハッシュ化、JWT生成）
+
+**現在の実装:**
+```
+AuthHandler → AuthService → UserRepository, JwtDenylistRepository
+  └─ 認証ロジック（パスワードハッシュ化、JWT生成/検証）があるためService経由
+
+TodoHandler → TodoRepository (直接)
+  └─ 単純なCRUDのみのためService層をスキップ
+```
+
+**Service層を追加するタイミング:**
+- Todo完了時に通知送信
+- 履歴記録（TodoHistory）
+- ポイント付与などのドメインロジック追加時
+
+この方針は実用的なアプローチ（Pragmatic Approach）であり、単純なCRUDに対してService層を追加するとパススルーコードが増えるため、必要になった時点で追加します。
+
+### Repository Interface
+
+テスト容易性のため、リポジトリはインターフェースを定義しています：
+
+```go
+// internal/repository/interfaces.go
+type UserRepositoryInterface interface {
+    FindByEmail(email string) (*model.User, error)
+    Create(user *model.User) error
+    FindByID(id int64) (*model.User, error)
+    ExistsByEmail(email string) (bool, error)
+}
+
+type TodoRepositoryInterface interface {
+    FindAllByUserID(userID int64) ([]model.Todo, error)
+    FindByID(id, userID int64) (*model.Todo, error)
+    Create(todo *model.Todo) error
+    Update(todo *model.Todo) error
+    Delete(id, userID int64) error
+    // ...
+}
+```
+
+これにより：
+- モック化が可能（単体テスト）
+- 実装の差し替えが容易
+- 依存性逆転の原則に準拠
+
+---
+
+## Helper Functions
+
+コードの重複を減らすため、共通処理をヘルパー関数として抽出しています。
+
+### Handler Helpers (`internal/handler/helpers.go`)
+
+```go
+// IDパラメータの解析
+func ParseIDParam(c echo.Context, name string) (int64, error)
+
+// リクエストのバインドとバリデーション（ジェネリクス使用）
+func BindAndValidate[T any](c echo.Context, req *T) error
+
+// 認証済みユーザーの取得
+func GetCurrentUserOrFail(c echo.Context) (*middleware.CurrentUser, error)
+```
+
+### Pointer Utilities (`pkg/util/pointers.go`)
+
+```go
+// null安全な値取得
+func DerefString(s *string, defaultVal string) string
+func DerefInt(i *int, defaultVal int) int
+func DerefInt64(i *int64, defaultVal int64) int64
+func DerefBool(b *bool, defaultVal bool) bool
+
+// ポインタ生成（ジェネリクス）
+func Ptr[T any](v T) *T
+```
+
+### Time Utilities (`pkg/util/time.go`)
+
+```go
+// 日付フォーマット
+func FormatDate(t *time.Time) *string
+func FormatDateTime(t time.Time) string
+
+// 日付パース
+func ParseDate(s string) (*time.Time, error)
+
+// 日付比較
+func IsBeforeToday(t time.Time) bool
+```
+
+---
+
+## Authentication Flow
 
 ### JWT Token Flow
+
 ```
 1. User Login (POST /auth/sign_in)
    ↓
-2. Validate credentials with Devise
+2. Validate credentials (bcrypt)
    ↓
-3. Generate JWT token
+3. Generate JWT token (with jti for revocation)
    ↓
 4. Return token in response body
    ↓
-5. Client stores token
+5. Client stores token (localStorage)
    ↓
 6. Client sends token in Authorization header
    ↓
-7. Rails validates token on each request
+7. Middleware validates token on each request
+   ↓
+8. Check jwt_denylist for revoked tokens
 ```
 
 ### Token Management
-- **Generation**: Warden::JWTAuth::UserEncoder
+- **Generation**: AuthService.GenerateToken
 - **Storage**: Client-side (localStorage)
-- **Validation**: Each API request
-- **Revocation**: JWT denylist table
+- **Validation**: JWTAuth middleware
+- **Revocation**: jwt_denylist table
 - **Expiration**: Configurable (default: 24 hours)
+
+---
 
 ## API Design
 
-### RESTful Endpoints
-```ruby
-# config/routes.rb
-namespace :api do
-  namespace :v1 do
-    resources :todos do
-      collection do
-        patch 'update_order'  # Bulk position update
-        get 'search'          # Advanced search with filtering
-      end
-      member do
-        patch 'tags'          # Update todo tags
-        delete 'files/:file_id', to: 'todos#destroy_file' # Delete file attachment
-      end
-      resources :comments, only: [:index, :create, :update, :destroy]
-      resources :histories, controller: 'todo_histories', only: [:index]
-    end
-    resources :categories
-    resources :tags
-  end
-end
+### Endpoints
+
+```
+# Auth (Public)
+POST   /auth/sign_up     # ユーザー登録
+POST   /auth/sign_in     # ログイン
+DELETE /auth/sign_out    # ログアウト（要認証）
+
+# API v1 (Protected)
+GET    /api/v1/todos           # Todo一覧
+POST   /api/v1/todos           # Todo作成
+GET    /api/v1/todos/:id       # Todo詳細
+PATCH  /api/v1/todos/:id       # Todo更新
+DELETE /api/v1/todos/:id       # Todo削除
+PATCH  /api/v1/todos/update_order  # 順序更新
 ```
 
-### Controller Pattern
-```ruby
-class Api::V1::TodosController < ApplicationController
-  before_action :authenticate_user!
-  before_action :set_todo, only: [:show, :update, :destroy, :tags, :destroy_file]
+### Response Format
 
-  def index
-    @todos = current_user.todos
-                        .includes(:category, :tags, files_attachments: :blob)
-                        .order(:position)
-    render json: @todos
-  end
-
-  def search
-    result = TodoSearchService.new(current_user, search_params).call
-    render json: result
-  end
-
-  private
-
-  def set_todo
-    @todo = current_user.todos.find(params[:id])
-  end
-
-  def todo_params
-    params.require(:todo).permit(:title, :completed, :due_date, :priority, 
-                                  :status, :description, :category_id, 
-                                  tag_ids: [], files: [])
-  end
-
-  def search_params
-    params.permit(:q, :category_id, :sort_by, :sort_order, :page, :per_page,
-                  :due_date_from, :due_date_to, :tag_mode,
-                  status: [], priority: [], tag_ids: [])
-  end
-end
-```
-
-## Model Architecture
-
-### User Model
-```ruby
-class User < ApplicationRecord
-  devise :database_authenticatable, :registerable,
-         :jwt_authenticatable, jwt_revocation_strategy: JwtDenylist
-  
-  has_many :todos, dependent: :destroy
-  
-  validates :email, presence: true, uniqueness: true
-  validates :name, presence: true
-end
-```
-
-### Todo Model
-```ruby
-class Todo < ApplicationRecord
-  belongs_to :user
-  belongs_to :category, optional: true, counter_cache: true
-  has_many :todo_tags, dependent: :destroy
-  has_many :tags, through: :todo_tags
-  has_many :comments, as: :commentable, dependent: :destroy
-  has_many :todo_histories, dependent: :destroy
-  has_many_attached :files
-  
-  enum priority: { low: 0, medium: 1, high: 2 }
-  enum status: { pending: 0, in_progress: 1, completed: 2 }
-  
-  validates :title, presence: true
-  validates :due_date, comparison: { greater_than: Date.today }, 
-            allow_nil: true, on: :create
-  validates :priority, inclusion: { in: priorities.keys }
-  validates :status, inclusion: { in: statuses.keys }
-  
-  before_create :set_position
-  after_create :track_creation
-  after_update :track_update
-  
-  scope :ordered, -> { order(:position) }
-  scope :active, -> { where(completed: false) }
-  scope :completed, -> { where(completed: true) }
-end
-```
-
-## Error Handling (UNIFIED)
-
-### Unified Error Handling in ApplicationController
-```ruby
-class ApplicationController < ActionController::API
-  rescue_from ActionController::ParameterMissing, with: :handle_parameter_missing
-  rescue_from ActiveRecord::RecordNotFound, with: :handle_not_found
-  rescue_from ActiveRecord::RecordInvalid, with: :handle_unprocessable_entity
-  rescue_from ActiveRecord::RecordNotUnique, with: :handle_unprocessable_entity
-  
-  private
-  
-  def handle_parameter_missing(exception)
-    error_response(message: "Parameter missing: #{exception.param}", status: :bad_request)
-  end
-  
-  def handle_not_found(exception)
-    error_response(message: 'Record not found', status: :not_found)
-  end
-  
-  def handle_unprocessable_entity(exception)
-    if exception.respond_to?(:record) && exception.record&.errors&.any?
-      render json: { errors: exception.record.errors }, status: :unprocessable_entity
-    else
-      error_response(message: exception.message, status: :unprocessable_entity)
-    end
-  end
-end
-```
-
-### ApiResponseFormatter Concern
-```ruby
-module ApiResponseFormatter
-  extend ActiveSupport::Concern
-  
-  private
-  
-  def success_response(message:, data: nil, status: :ok)
-    response_body = { message: message }
-    response_body[:data] = data if data
-    render json: response_body, status: status
-  end
-  
-  def error_response(message:, status: :unprocessable_entity)
-    render json: { error: message }, status: status
-  end
-end
-```
-
-### Standard Error Response
+**Success Response:**
 ```json
 {
-  "error": "Record not found"
+  "status": {
+    "code": 200,
+    "message": "Success"
+  },
+  "data": { ... }
 }
 ```
 
-### Success Response with Data
+**Error Response:**
 ```json
 {
-  "message": "Todo created successfully",
-  "data": {
-    "id": 1,
-    "title": "New Todo",
-    "completed": false
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Validation failed",
+    "details": {
+      "validation_errors": {
+        "title": ["required"]
+      }
+    }
   }
 }
 ```
 
-### Validation Error Response
-```json
-{
-  "errors": {
-    "title": ["can't be blank"],
-    "due_date": ["must be in the future"]
-  }
+---
+
+## Configuration
+
+環境変数による設定管理（`internal/config/config.go`）：
+
+| 環境変数 | 説明 | デフォルト |
+|---------|------|-----------|
+| `PORT` | サーバーポート | 3000 |
+| `DATABASE_URL` | PostgreSQL接続文字列 | (required) |
+| `JWT_SECRET` | JWT署名キー | (required) |
+| `JWT_EXPIRATION_HOURS` | JWT有効期限（時間） | 24 |
+| `ENV` | 環境 (development/production) | development |
+| `CORS_ALLOW_ORIGINS` | 許可オリジン（カンマ区切り） | http://localhost:3000 |
+| `CORS_MAX_AGE` | CORSプリフライトキャッシュ秒数 | 86400 |
+
+---
+
+## Testing
+
+### TestFixture Pattern
+
+テストセットアップの重複を排除するため、TestFixtureパターンを採用：
+
+```go
+// internal/testutil/fixture.go
+type TestFixture struct {
+    T            *testing.T
+    DB           *gorm.DB
+    Echo         *echo.Echo
+    UserRepo     *repository.UserRepository
+    TodoRepo     *repository.TodoRepository
+    AuthHandler  *handler.AuthHandler
+    TodoHandler  *handler.TodoHandler
+    // ...
+}
+
+// 使用例
+func TestTodoCreate(t *testing.T) {
+    f := testutil.SetupTestFixture(t)
+    user, token := f.CreateUser("test@example.com")
+
+    rec, _ := f.CallAuth(token, "POST", "/api/v1/todos",
+        `{"title":"Test"}`, f.TodoHandler.Create)
+
+    assert.Equal(t, http.StatusCreated, rec.Code)
 }
 ```
 
-## Background Jobs
+### Assertion Helpers
 
-### Sidekiq Configuration
-- Redis-backed job queue
-- Configured for async operations
-- Future use: email notifications, data cleanup
-
-## Security Considerations
-
-1. **Authentication**: All API endpoints require JWT token
-2. **Authorization**: Users can only access their own todos
-3. **CORS**: Restricted to frontend origin
-4. **Parameter Filtering**: Strong parameters in controllers
-5. **SQL Injection**: ActiveRecord parameterized queries
-
-## Performance Optimizations (ENHANCED)
-
-1. **Database Indexes**
-   - User email (unique)
-   - Todo position, user_id, category_id, priority, status (for filtering)
-   - Category user_id with unique constraint on (user_id, name)
-   - Tag user_id with unique constraint on (user_id, name)
-   - TodoTag todo_id, tag_id with unique constraint
-   - Comment (commentable_type, commentable_id) for polymorphic queries
-   - TodoHistory todo_id, user_id, action for audit queries
-   - JWT jti (denylist lookup)
-   - Full-text search indexes on todo title and description
-
-2. **Query Optimization**
-   - **Counter Cache**: `todos_count` on categories eliminates N+1 queries
-   - **Bulk Updates**: `Todo.update_order` for efficient position updates
-   - **Search Service**: Advanced filtering with optimized queries
-   - Eager loading associations with `includes(:category, :tags, files_attachments: :blob)`
-   - Scoped queries for filtering
-   - Ordered by position for consistency
-
-3. **N+1 Query Prevention**
-   - Counter cache implementation:
-   ```ruby
-   # Category model
-   has_many :todos, counter_cache: true
-   
-   # Migration adds todos_count column
-   add_column :categories, :todos_count, :integer, default: 0, null: false
-   ```
-   - Eager loading in search:
-   ```ruby
-   todos.includes(:category, :tags, :user)
-   ```
-
-4. **Bulk Operations**
-   ```ruby
-   # TodosController#update_order
-   def update_order
-     Todo.transaction do
-       params[:todos].each_with_index do |todo_data, index|
-         current_user.todos.find(todo_data[:id]).update!(position: index)
-       end
-     end
-   end
-   ```
-
-5. **Caching Strategy**
-   - Redis for future caching needs
-   - HTTP caching headers
-   - Counter cache for aggregate queries
-   - Active Storage blob caching for file attachments
-
-6. **Search Performance**
-   - TodoSearchService with optimized queries
-   - Database indexes for common filter combinations
-   - Pagination to limit result set size
-   - Search result highlighting for better UX
-
-## Testing Strategy
-
-### RSpec Test Suite
-```ruby
-# Model specs
-describe Todo do
-  it { should belong_to(:user) }
-  it { should validate_presence_of(:title) }
-end
-
-# Request specs
-describe "POST /api/todos" do
-  it "creates a new todo" do
-    post api_todos_path, params: { todo: attributes }
-    expect(response).to have_http_status(:created)
-  end
-end
+```go
+// internal/testutil/assertions.go
+func JSONResponse(t *testing.T, rec *httptest.ResponseRecorder) map[string]any
+func ExtractStatusCode(response map[string]any) int
+func ExtractData(response map[string]any) map[string]any
+func ExtractTodo(response map[string]any) map[string]any
 ```
 
-### Factory Bot
-```ruby
-FactoryBot.define do
-  factory :todo do
-    title { Faker::Lorem.sentence }
-    completed { false }
-    due_date { 1.week.from_now }
-    user
-  end
-end
-```
+---
+
+## Security
+
+1. **Authentication**: 全API v1エンドポイントはJWTトークン必須
+2. **Authorization**: ユーザーは自分のデータのみアクセス可能
+3. **CORS**: 環境変数で許可オリジンを設定
+4. **Password**: bcryptでハッシュ化
+5. **SQL Injection**: GORMのパラメータ化クエリで防止
+
+---
+
+## Performance
+
+1. **Database Indexes**: user_id, position等の頻出カラムにインデックス
+2. **Connection Pool**: GORMのSetMaxOpenConns, SetMaxIdleConns設定
+3. **Eager Loading**: Preload()でN+1問題を回避
+4. **Graceful Shutdown**: 10秒のシャットダウンタイムアウト

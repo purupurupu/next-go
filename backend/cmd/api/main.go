@@ -49,7 +49,14 @@ func main() {
 
 	// Auto migrate models (development only)
 	if cfg.IsDevelopment() {
-		if err := db.AutoMigrate(&model.User{}, &model.JwtDenylist{}); err != nil {
+		if err := db.AutoMigrate(
+			&model.User{},
+			&model.JwtDenylist{},
+			&model.Category{},
+			&model.Tag{},
+			&model.Todo{},
+			&model.TodoTag{},
+		); err != nil {
 			log.Fatal().Err(err).Msg("Failed to auto migrate models")
 		}
 		log.Info().Msg("Database models migrated")
@@ -70,14 +77,14 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	// CORS configuration
+	// CORS configuration (from environment)
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     cfg.GetCORSOrigins(),
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 		ExposeHeaders:    []string{echo.HeaderAuthorization},
 		AllowCredentials: true,
-		MaxAge:           86400,
+		MaxAge:           cfg.CORSMaxAge,
 	}))
 
 	// Health check endpoint
@@ -90,9 +97,11 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
+	todoRepo := repository.NewTodoRepository(db)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, cfg)
+	todoHandler := handler.NewTodoHandler(todoRepo)
 
 	// Auth routes (public)
 	auth := e.Group("/auth")
@@ -100,8 +109,16 @@ func main() {
 	auth.POST("/sign_in", authHandler.SignIn)
 	auth.DELETE("/sign_out", authHandler.SignOut, authMiddleware.JWTAuth(cfg, userRepo, denylistRepo))
 
-	// API v1 routes (protected) - will be added in Phase 2+
-	// api := e.Group("/api/v1", authMiddleware.JWTAuth(cfg, userRepo, denylistRepo))
+	// API v1 routes (protected)
+	api := e.Group("/api/v1", authMiddleware.JWTAuth(cfg, userRepo, denylistRepo))
+
+	// Todo routes
+	api.GET("/todos", todoHandler.List)
+	api.POST("/todos", todoHandler.Create)
+	api.GET("/todos/:id", todoHandler.Show)
+	api.PATCH("/todos/:id", todoHandler.Update)
+	api.DELETE("/todos/:id", todoHandler.Delete)
+	api.PATCH("/todos/update_order", todoHandler.UpdateOrder)
 
 	// Log startup information
 	log.Info().

@@ -121,8 +121,46 @@ docker compose exec frontend pnpm run typecheck  # 型チェック
 ### Backend
 
 ```bash
-docker compose exec backend go test -v ./...     # テスト
 docker compose exec backend go build -o bin/api cmd/api/main.go  # ビルド
+docker compose exec backend go fmt ./...         # フォーマット
+```
+
+### テスト
+
+```bash
+# テスト用DBを起動
+docker compose up -d db_test
+
+# テスト実行（コンテナ内）
+docker compose exec backend go test -v ./...
+
+# 特定のパッケージのみ
+docker compose exec backend go test -v ./internal/handler/...
+```
+
+#### `./...` とは？
+
+Goのパッケージパス指定の構文です。
+
+| パス | 意味 |
+|-----|------|
+| `./` | 現在のディレクトリ |
+| `...` | このディレクトリ以下すべて（ワイルドカード） |
+
+```bash
+go test ./...                    # すべてのパッケージ
+go test ./internal/handler/...   # handler以下すべて
+go test ./internal/handler       # handlerのみ（サブディレクトリ除く）
+```
+
+#### ローカルでテスト実行
+
+Dockerコンテナを経由せずローカルで実行する場合は、環境変数でDB接続先を指定：
+
+```bash
+cd backend
+TEST_DATABASE_URL="host=localhost user=postgres password=password dbname=todo_next_test port=5433 sslmode=disable" \
+  go test -v ./...
 ```
 
 ## Project Structure

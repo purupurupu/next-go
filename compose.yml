@@ -37,6 +37,15 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
+  db_test:
+    image: postgres:15
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=todo_next_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+
   redis:
     image: redis:7-alpine
     ports:

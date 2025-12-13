@@ -10,6 +10,7 @@ import (
 	"todo-api/internal/errors"
 	"todo-api/internal/repository"
 	"todo-api/internal/service"
+	"todo-api/pkg/util"
 )
 
 // Context keys for storing user and claims
@@ -70,14 +71,10 @@ func JWTAuth(cfg *config.Config, userRepo *repository.UserRepository, denylistRe
 			}
 
 			// Set current user in context
-			name := ""
-			if user.Name != nil {
-				name = *user.Name
-			}
 			c.Set(CurrentUserKey, &CurrentUser{
 				ID:    user.ID,
 				Email: user.Email,
-				Name:  name,
+				Name:  util.DerefString(user.Name, ""),
 			})
 
 			// Store claims for later use (e.g., sign out)
