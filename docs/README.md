@@ -1,19 +1,21 @@
 # Documentation
 
-This directory contains detailed technical documentation for the Next.js + Rails Todo application.
+This directory contains detailed technical documentation for the Next.js + Go Todo application.
 
 ## 📚 Documentation Structure
 
 ### [Architecture](./architecture/)
 - [System Overview](./architecture/overview.md) - High-level architecture and design decisions
 - [Frontend Architecture](./architecture/frontend.md) - Next.js application structure and patterns
-- [Backend Architecture](./architecture/backend.md) - Rails API design and implementation details
+- [Backend Architecture](./architecture/backend.md) - Go API design and implementation details
 - [Database Design](./architecture/database.md) - Schema design, relationships, and migrations
 
 ### [API Documentation](./api/)
 - [API Overview](./api/README.md) - General API guidelines and conventions
 - [Authentication API](./api/authentication.md) - User authentication endpoints
 - [Todos API](./api/todos.md) - Todo CRUD operations and batch updates
+- [Categories API](./api/categories.md) - Category CRUD operations
+- [Tags API](./api/tags.md) - Tag CRUD operations
 
 ### [Development Guides](./guides/)
 - [Getting Started](./guides/getting-started.md) - Detailed setup instructions
