@@ -2,7 +2,7 @@
 
 ## Technology Stack
 
-- **Language**: Go 1.23
+- **Language**: Go 1.25
 - **Framework**: Echo v4 (Web framework)
 - **ORM**: GORM
 - **Database**: PostgreSQL 15
