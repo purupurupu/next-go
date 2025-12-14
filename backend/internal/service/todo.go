@@ -170,13 +170,14 @@ func (s *TodoService) Delete(todoID, userID int64) error {
 
 	categoryID := todo.CategoryID
 
-	// Record history before deletion
-	if err := s.recordDeletedHistory(todo, userID); err != nil {
-		log.Error().Err(err).Msg("TodoService.Delete: failed to record history")
-	}
-
+	// Delete todo first
 	if err := s.todoRepo.Delete(todoID, userID); err != nil {
 		return err
+	}
+
+	// Record history after successful deletion
+	if err := s.recordDeletedHistory(todo, userID); err != nil {
+		log.Error().Err(err).Msg("TodoService.Delete: failed to record history")
 	}
 
 	// Decrement category count if category was set
