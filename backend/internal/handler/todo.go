@@ -16,13 +16,15 @@ import (
 
 // TodoHandler handles todo-related endpoints
 type TodoHandler struct {
-	todoRepo *repository.TodoRepository
+	todoRepo     *repository.TodoRepository
+	categoryRepo *repository.CategoryRepository
 }
 
 // NewTodoHandler creates a new TodoHandler
-func NewTodoHandler(todoRepo *repository.TodoRepository) *TodoHandler {
+func NewTodoHandler(todoRepo *repository.TodoRepository, categoryRepo *repository.CategoryRepository) *TodoHandler {
 	return &TodoHandler{
-		todoRepo: todoRepo,
+		todoRepo:     todoRepo,
+		categoryRepo: categoryRepo,
 	}
 }
 
@@ -253,6 +255,13 @@ func (h *TodoHandler) Create(c echo.Context) error {
 		return errors.InternalError()
 	}
 
+	// Increment category todo count if category is set
+	if todo.CategoryID != nil {
+		if err := h.categoryRepo.IncrementTodosCount(*todo.CategoryID); err != nil {
+			// Log but don't fail the request
+		}
+	}
+
 	// Reload to get auto-generated position
 	todo, err = h.todoRepo.FindByIDWithRelations(todo.ID, currentUser.ID)
 	if err != nil {
@@ -301,6 +310,7 @@ func (h *TodoHandler) Update(c echo.Context) error {
 	}
 
 	// Handle category_id update (including setting to null)
+	oldCategoryID := todo.CategoryID
 	if req.Todo.CategoryID != nil {
 		if *req.Todo.CategoryID == 0 {
 			// Setting to null
@@ -318,6 +328,16 @@ func (h *TodoHandler) Update(c echo.Context) error {
 			}
 			todo.CategoryID = req.Todo.CategoryID
 		}
+	}
+
+	// Check if category changed
+	categoryChanged := false
+	if oldCategoryID == nil && todo.CategoryID != nil {
+		categoryChanged = true
+	} else if oldCategoryID != nil && todo.CategoryID == nil {
+		categoryChanged = true
+	} else if oldCategoryID != nil && todo.CategoryID != nil && *oldCategoryID != *todo.CategoryID {
+		categoryChanged = true
 	}
 
 	if req.Todo.Completed != nil {
@@ -358,6 +378,16 @@ func (h *TodoHandler) Update(c echo.Context) error {
 		return errors.InternalError()
 	}
 
+	// Update category counts if category changed
+	if categoryChanged {
+		if oldCategoryID != nil {
+			_ = h.categoryRepo.DecrementTodosCount(*oldCategoryID)
+		}
+		if todo.CategoryID != nil {
+			_ = h.categoryRepo.IncrementTodosCount(*todo.CategoryID)
+		}
+	}
+
 	// Reload with relations
 	todo, err = h.todoRepo.FindByIDWithRelations(id, currentUser.ID)
 	if err != nil {
@@ -382,11 +412,27 @@ func (h *TodoHandler) Delete(c echo.Context) error {
 		return err
 	}
 
+	// Get todo first to update category count
+	todo, err := h.todoRepo.FindByID(id, currentUser.ID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.NotFound("Todo", id)
+		}
+		return errors.InternalError()
+	}
+
+	categoryID := todo.CategoryID
+
 	if err := h.todoRepo.Delete(id, currentUser.ID); err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Todo", id)
 		}
 		return errors.InternalError()
+	}
+
+	// Decrement category count if category was set
+	if categoryID != nil {
+		_ = h.categoryRepo.DecrementTodosCount(*categoryID)
 	}
 
 	return response.NoContent(c)

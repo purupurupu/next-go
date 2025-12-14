@@ -103,7 +103,7 @@ func main() {
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, cfg)
-	todoHandler := handler.NewTodoHandler(todoRepo)
+	todoHandler := handler.NewTodoHandler(todoRepo, categoryRepo)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo)
 	tagHandler := handler.NewTagHandler(tagRepo)
 

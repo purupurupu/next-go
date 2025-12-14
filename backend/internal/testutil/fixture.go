@@ -45,7 +45,7 @@ func SetupTestFixture(t *testing.T) *TestFixture {
 	tagRepo := repository.NewTagRepository(db)
 
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, TestConfig)
-	todoHandler := handler.NewTodoHandler(todoRepo)
+	todoHandler := handler.NewTodoHandler(todoRepo, categoryRepo)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo)
 	tagHandler := handler.NewTagHandler(tagRepo)
 
