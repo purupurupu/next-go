@@ -11,7 +11,7 @@ Full-stack Todo application with:
 
 - **Frontend**: Next.js 16 with TypeScript, React 19.2, Tailwind CSS v4
 - **Package Manager**: pnpm (NOT npm)
-- **Backend**: Go 1.23 with Echo framework, GORM, JWT authentication
+- **Backend**: Go 1.25 with Echo framework, GORM, JWT authentication
 - **Database**: PostgreSQL 15
 - **Cache**: Redis 7
 - **Infrastructure**: Docker Compose
@@ -54,11 +54,17 @@ docker compose exec frontend pnpm run typecheck  # TypeScript check
 ### Backend Development
 
 ```bash
-# Run tests
+# Start test database
+docker compose up -d db_test
+
+# Run all tests
 docker compose exec backend go test -v ./...
 
-# Run specific test
+# Run specific package tests
 docker compose exec backend go test -v ./internal/handler/...
+
+# Run single test function
+docker compose exec backend go test -v ./internal/handler/... -run TestTodoCreate
 
 # Run with coverage
 docker compose exec backend go test -cover ./...
@@ -104,7 +110,10 @@ backend/
 
 **Current Implementation Status**:
 - Authentication (sign_up, sign_in, sign_out) - Complete
-- Todo CRUD, Categories, Tags, Comments - Planned (see docs/migration/)
+- Todo CRUD (with position ordering) - Complete
+- Categories CRUD (with todo_count counter cache) - Complete
+- Tags CRUD - Complete
+- Comments, Histories - Planned
 
 ## Frontend Architecture
 

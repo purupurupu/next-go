@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -10,19 +9,22 @@ import (
 	"todo-api/internal/errors"
 	"todo-api/internal/model"
 	"todo-api/internal/repository"
+	"todo-api/internal/service"
 	"todo-api/pkg/response"
 	"todo-api/pkg/util"
 )
 
 // TodoHandler handles todo-related endpoints
 type TodoHandler struct {
-	todoRepo *repository.TodoRepository
+	todoService *service.TodoService
+	todoRepo    *repository.TodoRepository
 }
 
 // NewTodoHandler creates a new TodoHandler
-func NewTodoHandler(todoRepo *repository.TodoRepository) *TodoHandler {
+func NewTodoHandler(todoService *service.TodoService, todoRepo *repository.TodoRepository) *TodoHandler {
 	return &TodoHandler{
-		todoRepo: todoRepo,
+		todoService: todoService,
+		todoRepo:    todoRepo,
 	}
 }
 
@@ -142,7 +144,7 @@ func (h *TodoHandler) List(c echo.Context) error {
 
 	todos, err := h.todoRepo.FindAllByUserIDWithRelations(currentUser.ID)
 	if err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TodoHandler.List: failed to fetch todos")
 	}
 
 	// Convert to response format
@@ -174,7 +176,7 @@ func (h *TodoHandler) Show(c echo.Context) error {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Todo", id)
 		}
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TodoHandler.Show: failed to fetch todo")
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -195,68 +197,18 @@ func (h *TodoHandler) Create(c echo.Context) error {
 		return err
 	}
 
-	// Validate category ownership if provided
-	if req.Todo.CategoryID != nil {
-		valid, err := h.todoRepo.ValidateCategoryOwnership(*req.Todo.CategoryID, currentUser.ID)
-		if err != nil {
-			return errors.InternalError()
-		}
-		if !valid {
-			return errors.ValidationFailed(map[string][]string{
-				"category_id": {"Category not found or not owned by user"},
-			})
-		}
-	}
-
-	// Parse due date if provided
-	var dueDate *time.Time
-	if req.Todo.DueDate != nil && *req.Todo.DueDate != "" {
-		dueDate, err = util.ParseDate(*req.Todo.DueDate)
-		if err != nil {
-			return errors.ValidationFailed(map[string][]string{
-				"due_date": {"Invalid date format. Use YYYY-MM-DD"},
-			})
-		}
-		// Check if due date is in the past (only for creation)
-		if util.IsBeforeToday(*dueDate) {
-			return errors.ValidationFailed(map[string][]string{
-				"due_date": {"Due date cannot be in the past"},
-			})
-		}
-	}
-
-	// Create todo
-	todo := &model.Todo{
+	todo, err := h.todoService.Create(service.CreateInput{
 		UserID:      currentUser.ID,
 		Title:       req.Todo.Title,
 		Description: req.Todo.Description,
 		CategoryID:  req.Todo.CategoryID,
-		DueDate:     dueDate,
+		Priority:    req.Todo.Priority,
+		Status:      req.Todo.Status,
+		DueDate:     req.Todo.DueDate,
 		Position:    req.Todo.Position,
-	}
-
-	// Set priority if provided
-	if req.Todo.Priority != nil {
-		todo.Priority = model.Priority(*req.Todo.Priority)
-	} else {
-		todo.Priority = model.PriorityMedium
-	}
-
-	// Set status if provided
-	if req.Todo.Status != nil {
-		todo.Status = model.Status(*req.Todo.Status)
-	} else {
-		todo.Status = model.StatusPending
-	}
-
-	if err := h.todoRepo.Create(todo); err != nil {
-		return errors.InternalError()
-	}
-
-	// Reload to get auto-generated position
-	todo, err = h.todoRepo.FindByIDWithRelations(todo.ID, currentUser.ID)
+	})
 	if err != nil {
-		return errors.InternalError()
+		return err
 	}
 
 	return response.Created(c, map[string]any{
@@ -277,94 +229,29 @@ func (h *TodoHandler) Update(c echo.Context) error {
 		return err
 	}
 
-	// Get existing todo
-	todo, err := h.todoRepo.FindByID(id, currentUser.ID)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return errors.NotFound("Todo", id)
-		}
-		return errors.InternalError()
-	}
-
 	var req UpdateTodoRequest
 	if err := BindAndValidate(c, &req); err != nil {
 		return err
 	}
 
-	// Apply updates
-	if req.Todo.Title != nil {
-		todo.Title = *req.Todo.Title
-	}
-
-	if req.Todo.Description != nil {
-		todo.Description = req.Todo.Description
-	}
-
-	// Handle category_id update (including setting to null)
-	if req.Todo.CategoryID != nil {
-		if *req.Todo.CategoryID == 0 {
-			// Setting to null
-			todo.CategoryID = nil
-		} else {
-			// Validate category ownership
-			valid, err := h.todoRepo.ValidateCategoryOwnership(*req.Todo.CategoryID, currentUser.ID)
-			if err != nil {
-				return errors.InternalError()
-			}
-			if !valid {
-				return errors.ValidationFailed(map[string][]string{
-					"category_id": {"Category not found or not owned by user"},
-				})
-			}
-			todo.CategoryID = req.Todo.CategoryID
-		}
-	}
-
-	if req.Todo.Completed != nil {
-		todo.Completed = *req.Todo.Completed
-		// Update status based on completed flag
-		if *req.Todo.Completed {
-			todo.Status = model.StatusCompleted
-		} else if todo.Status == model.StatusCompleted {
-			todo.Status = model.StatusPending
-		}
-	}
-
-	if req.Todo.Priority != nil {
-		todo.Priority = model.Priority(*req.Todo.Priority)
-	}
-
-	if req.Todo.Status != nil {
-		todo.Status = model.Status(*req.Todo.Status)
-		// Update completed based on status
-		todo.Completed = (todo.Status == model.StatusCompleted)
-	}
-
-	if req.Todo.DueDate != nil {
-		dueDate, err := util.ParseDate(*req.Todo.DueDate)
-		if err != nil {
-			return errors.ValidationFailed(map[string][]string{
-				"due_date": {"Invalid date format. Use YYYY-MM-DD"},
-			})
-		}
-		todo.DueDate = dueDate
-	}
-
-	if req.Todo.Position != nil {
-		todo.Position = req.Todo.Position
-	}
-
-	if err := h.todoRepo.Update(todo); err != nil {
-		return errors.InternalError()
-	}
-
-	// Reload with relations
-	todo, err = h.todoRepo.FindByIDWithRelations(id, currentUser.ID)
+	todo, err := h.todoService.Update(id, currentUser.ID, service.UpdateInput{
+		Title:       req.Todo.Title,
+		Description: req.Todo.Description,
+		CategoryID:  req.Todo.CategoryID,
+		Completed:   req.Todo.Completed,
+		Priority:    req.Todo.Priority,
+		Status:      req.Todo.Status,
+		DueDate:     req.Todo.DueDate,
+		Position:    req.Todo.Position,
+	})
 	if err != nil {
-		return errors.InternalError()
+		if err == gorm.ErrRecordNotFound {
+			return errors.NotFound("Todo", id)
+		}
+		return err
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
+	return response.Success(c, map[string]any{
 		"todo": toTodoResponse(todo),
 	})
 }
@@ -382,11 +269,11 @@ func (h *TodoHandler) Delete(c echo.Context) error {
 		return err
 	}
 
-	if err := h.todoRepo.Delete(id, currentUser.ID); err != nil {
+	if err := h.todoService.Delete(id, currentUser.ID); err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Todo", id)
 		}
-		return errors.InternalError()
+		return err
 	}
 
 	return response.NoContent(c)
@@ -415,7 +302,7 @@ func (h *TodoHandler) UpdateOrder(c echo.Context) error {
 	}
 
 	if err := h.todoRepo.UpdateOrder(currentUser.ID, updates); err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TodoHandler.UpdateOrder: failed to update order")
 	}
 
 	return response.Message(c, "Order updated successfully")

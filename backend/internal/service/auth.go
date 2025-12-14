@@ -53,7 +53,7 @@ func (s *AuthService) SignUp(email, password, passwordConfirmation, name string)
 	// Check for duplicate email
 	exists, err := s.userRepo.ExistsByEmail(email)
 	if err != nil {
-		return nil, "", errors.InternalError()
+		return nil, "", errors.InternalErrorWithLog(err, "AuthService.SignUp: failed to check email")
 	}
 	if exists {
 		return nil, "", errors.DuplicateResource("User", "email")
@@ -65,11 +65,11 @@ func (s *AuthService) SignUp(email, password, passwordConfirmation, name string)
 		Name:  &name,
 	}
 	if err := user.SetPassword(password); err != nil {
-		return nil, "", errors.InternalError()
+		return nil, "", errors.InternalErrorWithLog(err, "AuthService.SignUp: failed to hash password")
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
-		return nil, "", errors.InternalError()
+		return nil, "", errors.InternalErrorWithLog(err, "AuthService.SignUp: failed to create user")
 	}
 
 	// Generate token

@@ -86,20 +86,6 @@ func (r *TodoRepository) Update(todo *model.Todo) error {
 	return r.db.Save(todo).Error
 }
 
-// UpdateFields updates specific fields of a todo
-func (r *TodoRepository) UpdateFields(id, userID int64, updates map[string]any) error {
-	result := r.db.Model(&model.Todo{}).
-		Where("id = ? AND user_id = ?", id, userID).
-		Updates(updates)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
-}
-
 // Delete deletes a todo by ID for a specific user
 func (r *TodoRepository) Delete(id, userID int64) error {
 	result := r.db.

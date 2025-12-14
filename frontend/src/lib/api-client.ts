@@ -193,6 +193,14 @@ class HttpClient {
   }
 }
 
+// API v1用のベースクライアント（/api/v1プレフィックス付き）
+class ApiClient extends HttpClient {
+  constructor() {
+    super(`${API_BASE_URL}/api/v1`);
+  }
+}
+
 export const httpClient = new HttpClient();
-export { ApiError, HttpClient };
+export const apiClient = new ApiClient();
+export { ApiError, HttpClient, ApiClient };
 export type { HttpClient as HttpClientType };

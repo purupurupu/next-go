@@ -15,18 +15,23 @@ import (
 	"todo-api/internal/middleware"
 	"todo-api/internal/model"
 	"todo-api/internal/repository"
+	"todo-api/internal/service"
 )
 
 // TestFixture holds all dependencies needed for handler tests
 type TestFixture struct {
-	T            *testing.T
-	DB           *gorm.DB
-	Echo         *echo.Echo
-	UserRepo     *repository.UserRepository
-	DenylistRepo *repository.JwtDenylistRepository
-	TodoRepo     *repository.TodoRepository
-	AuthHandler  *handler.AuthHandler
-	TodoHandler  *handler.TodoHandler
+	T               *testing.T
+	DB              *gorm.DB
+	Echo            *echo.Echo
+	UserRepo        *repository.UserRepository
+	DenylistRepo    *repository.JwtDenylistRepository
+	TodoRepo        *repository.TodoRepository
+	CategoryRepo    *repository.CategoryRepository
+	TagRepo         *repository.TagRepository
+	AuthHandler     *handler.AuthHandler
+	TodoHandler     *handler.TodoHandler
+	CategoryHandler *handler.CategoryHandler
+	TagHandler      *handler.TagHandler
 }
 
 // SetupTestFixture creates a new TestFixture with all dependencies initialized
@@ -37,23 +42,35 @@ func SetupTestFixture(t *testing.T) *TestFixture {
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
 	todoRepo := repository.NewTodoRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
+	tagRepo := repository.NewTagRepository(db)
 
+	// Initialize services
+	todoService := service.NewTodoService(todoRepo, categoryRepo)
+
+	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, TestConfig)
-	todoHandler := handler.NewTodoHandler(todoRepo)
+	todoHandler := handler.NewTodoHandler(todoService, todoRepo)
+	categoryHandler := handler.NewCategoryHandler(categoryRepo)
+	tagHandler := handler.NewTagHandler(tagRepo)
 
 	t.Cleanup(func() {
 		CleanupTestDB(db)
 	})
 
 	return &TestFixture{
-		T:            t,
-		DB:           db,
-		Echo:         e,
-		UserRepo:     userRepo,
-		DenylistRepo: denylistRepo,
-		TodoRepo:     todoRepo,
-		AuthHandler:  authHandler,
-		TodoHandler:  todoHandler,
+		T:               t,
+		DB:              db,
+		Echo:            e,
+		UserRepo:        userRepo,
+		DenylistRepo:    denylistRepo,
+		TodoRepo:        todoRepo,
+		CategoryRepo:    categoryRepo,
+		TagRepo:         tagRepo,
+		AuthHandler:     authHandler,
+		TodoHandler:     todoHandler,
+		CategoryHandler: categoryHandler,
+		TagHandler:      tagHandler,
 	}
 }
 
@@ -99,8 +116,9 @@ func (f *TestFixture) CreateTodoWithPosition(userID int64, title string, positio
 	return todo
 }
 
-// CallAuth calls a handler with JWT authentication middleware
-func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
+// CallAuthGeneric calls a handler with JWT authentication middleware
+// This is the unified method for all resource types (todos, categories, tags)
+func (f *TestFixture) CallAuthGeneric(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
 	var req *http.Request
 	if body != "" {
 		req = httptest.NewRequest(method, path, strings.NewReader(body))
@@ -113,12 +131,22 @@ func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc ech
 	rec := httptest.NewRecorder()
 	c := f.Echo.NewContext(req, rec)
 
-	// Extract path params
-	if strings.Contains(path, "/todos/") && !strings.HasSuffix(path, "/todos/update_order") {
-		parts := strings.Split(path, "/todos/")
-		if len(parts) > 1 {
-			c.SetParamNames("id")
-			c.SetParamValues(parts[1])
+	// Extract path params for any resource type
+	// Pattern: /api/v1/{resource}/{id} or /{resource}/{id}
+	resources := []string{"todos", "categories", "tags"}
+	for _, resource := range resources {
+		pattern := "/" + resource + "/"
+		if strings.Contains(path, pattern) {
+			// Skip special endpoints like /todos/update_order
+			if resource == "todos" && strings.HasSuffix(path, "/update_order") {
+				continue
+			}
+			parts := strings.Split(path, pattern)
+			if len(parts) > 1 && parts[1] != "" {
+				c.SetParamNames("id")
+				c.SetParamValues(parts[1])
+				break
+			}
 		}
 	}
 
@@ -129,7 +157,70 @@ func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc ech
 	return rec, err
 }
 
+// CallAuth calls a handler with JWT authentication middleware (alias for CallAuthGeneric)
+func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
+	return f.CallAuthGeneric(token, method, path, body, handlerFunc)
+}
+
+// ResourcePath returns the path for a specific resource by ID
+func ResourcePath(resource string, id int64) string {
+	return fmt.Sprintf("/api/v1/%s/%d", resource, id)
+}
+
 // TodoPath returns the path for a specific todo ID
 func TodoPath(id int64) string {
-	return fmt.Sprintf("/api/v1/todos/%d", id)
+	return ResourcePath("todos", id)
+}
+
+// CategoryPath returns the path for a specific category ID
+func CategoryPath(id int64) string {
+	return ResourcePath("categories", id)
+}
+
+// TagPath returns the path for a specific tag ID
+func TagPath(id int64) string {
+	return ResourcePath("tags", id)
+}
+
+// CreateCategory creates a test category for a user
+func (f *TestFixture) CreateCategory(userID int64, name, color string) *model.Category {
+	category := &model.Category{
+		UserID: userID,
+		Name:   name,
+		Color:  color,
+	}
+	require.NoError(f.T, f.DB.Create(category).Error)
+	return category
+}
+
+// CreateTag creates a test tag for a user
+func (f *TestFixture) CreateTag(userID int64, name string, color *string) *model.Tag {
+	tag := &model.Tag{
+		UserID: userID,
+		Name:   strings.ToLower(name),
+		Color:  color,
+	}
+	require.NoError(f.T, f.DB.Create(tag).Error)
+	return tag
+}
+
+// CreateTodoWithCategory creates a test todo with a category
+func (f *TestFixture) CreateTodoWithCategory(userID int64, title string, categoryID int64) *model.Todo {
+	todo := &model.Todo{
+		UserID:     userID,
+		Title:      title,
+		CategoryID: &categoryID,
+	}
+	require.NoError(f.T, f.DB.Create(todo).Error)
+	return todo
+}
+
+// CallAuthCategory calls a category handler with authentication (alias for CallAuthGeneric)
+func (f *TestFixture) CallAuthCategory(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
+	return f.CallAuthGeneric(token, method, path, body, handlerFunc)
+}
+
+// CallAuthTag calls a tag handler with authentication (alias for CallAuthGeneric)
+func (f *TestFixture) CallAuthTag(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
+	return f.CallAuthGeneric(token, method, path, body, handlerFunc)
 }
