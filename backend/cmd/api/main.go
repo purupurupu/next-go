@@ -98,10 +98,14 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
 	todoRepo := repository.NewTodoRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
+	tagRepo := repository.NewTagRepository(db)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, cfg)
 	todoHandler := handler.NewTodoHandler(todoRepo)
+	categoryHandler := handler.NewCategoryHandler(categoryRepo)
+	tagHandler := handler.NewTagHandler(tagRepo)
 
 	// Auth routes (public)
 	auth := e.Group("/auth")
@@ -119,6 +123,20 @@ func main() {
 	api.PATCH("/todos/:id", todoHandler.Update)
 	api.DELETE("/todos/:id", todoHandler.Delete)
 	api.PATCH("/todos/update_order", todoHandler.UpdateOrder)
+
+	// Category routes
+	api.GET("/categories", categoryHandler.List)
+	api.POST("/categories", categoryHandler.Create)
+	api.GET("/categories/:id", categoryHandler.Show)
+	api.PATCH("/categories/:id", categoryHandler.Update)
+	api.DELETE("/categories/:id", categoryHandler.Delete)
+
+	// Tag routes
+	api.GET("/tags", tagHandler.List)
+	api.POST("/tags", tagHandler.Create)
+	api.GET("/tags/:id", tagHandler.Show)
+	api.PATCH("/tags/:id", tagHandler.Update)
+	api.DELETE("/tags/:id", tagHandler.Delete)
 
 	// Log startup information
 	log.Info().
