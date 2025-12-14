@@ -29,9 +29,9 @@ func TestCategoryList_Success(t *testing.T) {
 	categories := testutil.ExtractCategories(response)
 	assert.Len(t, categories, 2)
 
-	// Should be sorted by name (Personal < Work)
+	// Should be sorted by name (personal < work)
 	first := testutil.CategoryAt(categories, 0)
-	assert.Equal(t, "Personal", first["name"])
+	assert.Equal(t, "personal", first["name"])
 }
 
 // TestCategoryList_Empty tests empty category list
@@ -66,7 +66,7 @@ func TestCategoryList_UserScope(t *testing.T) {
 	response := testutil.JSONResponse(t, rec)
 	categories := testutil.ExtractCategories(response)
 	assert.Len(t, categories, 1)
-	assert.Equal(t, "User1 Category", testutil.CategoryAt(categories, 0)["name"])
+	assert.Equal(t, "user1 category", testutil.CategoryAt(categories, 0)["name"])
 }
 
 // TestCategoryCreate_Success tests successful category creation
@@ -83,7 +83,7 @@ func TestCategoryCreate_Success(t *testing.T) {
 
 	response := testutil.JSONResponse(t, rec)
 	category := testutil.ExtractCategoryFromData(response)
-	assert.Equal(t, "New Category", category["name"])
+	assert.Equal(t, "new category", category["name"])
 	assert.Equal(t, "#FF5500", category["color"])
 	assert.Equal(t, float64(0), category["todo_count"])
 }
@@ -141,7 +141,7 @@ func TestCategoryShow_Success(t *testing.T) {
 
 	response := testutil.JSONResponse(t, rec)
 	catResp := testutil.ExtractCategory(response)
-	assert.Equal(t, "Show Me", catResp["name"])
+	assert.Equal(t, "show me", catResp["name"])
 }
 
 // TestCategoryShow_NotFound tests category not found error
@@ -175,14 +175,14 @@ func TestCategoryUpdate_Success(t *testing.T) {
 	category := f.CreateCategory(user.ID, "Original", "#FF0000")
 
 	body := `{"category":{"name":"Updated","color":"#00FF00"}}`
-	rec, err := f.CallAuthCategory(token, http.MethodPut, testutil.CategoryPath(category.ID), body, f.CategoryHandler.Update)
+	rec, err := f.CallAuthCategory(token, http.MethodPatch, testutil.CategoryPath(category.ID), body, f.CategoryHandler.Update)
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	response := testutil.JSONResponse(t, rec)
 	catResp := testutil.ExtractCategory(response)
-	assert.Equal(t, "Updated", catResp["name"])
+	assert.Equal(t, "updated", catResp["name"])
 	assert.Equal(t, "#00FF00", catResp["color"])
 }
 
@@ -194,12 +194,12 @@ func TestCategoryUpdate_PartialUpdate(t *testing.T) {
 	category := f.CreateCategory(user.ID, "Original", "#FF0000")
 
 	body := `{"category":{"color":"#00FF00"}}`
-	rec, err := f.CallAuthCategory(token, http.MethodPut, testutil.CategoryPath(category.ID), body, f.CategoryHandler.Update)
+	rec, err := f.CallAuthCategory(token, http.MethodPatch, testutil.CategoryPath(category.ID), body, f.CategoryHandler.Update)
 	require.NoError(t, err)
 
 	response := testutil.JSONResponse(t, rec)
 	catResp := testutil.ExtractCategory(response)
-	assert.Equal(t, "Original", catResp["name"]) // Name unchanged
+	assert.Equal(t, "original", catResp["name"]) // Name unchanged (lowercase)
 	assert.Equal(t, "#00FF00", catResp["color"])
 }
 
@@ -212,7 +212,7 @@ func TestCategoryUpdate_DuplicateName(t *testing.T) {
 	category := f.CreateCategory(user.ID, "ToUpdate", "#00FF00")
 
 	body := `{"category":{"name":"Existing"}}`
-	_, err := f.CallAuthCategory(token, http.MethodPut, testutil.CategoryPath(category.ID), body, f.CategoryHandler.Update)
+	_, err := f.CallAuthCategory(token, http.MethodPatch, testutil.CategoryPath(category.ID), body, f.CategoryHandler.Update)
 	require.Error(t, err)
 }
 

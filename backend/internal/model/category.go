@@ -26,8 +26,8 @@ func (Category) TableName() string {
 	return "categories"
 }
 
-// BeforeSave normalizes category name before saving
+// BeforeSave normalizes category name to lowercase before saving
 func (c *Category) BeforeSave(tx *gorm.DB) error {
-	c.Name = strings.TrimSpace(c.Name)
+	c.Name = strings.ToLower(strings.TrimSpace(c.Name))
 	return nil
 }
