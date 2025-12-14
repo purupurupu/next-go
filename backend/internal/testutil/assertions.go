@@ -93,3 +93,89 @@ func TodoAt(todos []any, index int) map[string]any {
 	}
 	return todo
 }
+
+// ExtractCategory extracts a category from the response (direct "category" key)
+func ExtractCategory(response map[string]any) map[string]any {
+	category, ok := response["category"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return category
+}
+
+// ExtractCategoryFromData extracts a category from the data object
+func ExtractCategoryFromData(response map[string]any) map[string]any {
+	data := ExtractData(response)
+	if data == nil {
+		return nil
+	}
+	category, ok := data["category"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return category
+}
+
+// ExtractCategories extracts the categories array from the response
+func ExtractCategories(response map[string]any) []any {
+	categories, ok := response["categories"].([]any)
+	if !ok {
+		return nil
+	}
+	return categories
+}
+
+// CategoryAt returns the category at the given index as a map
+func CategoryAt(categories []any, index int) map[string]any {
+	if index >= len(categories) {
+		return nil
+	}
+	category, ok := categories[index].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return category
+}
+
+// ExtractTag extracts a tag from the response (direct "tag" key)
+func ExtractTag(response map[string]any) map[string]any {
+	tag, ok := response["tag"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return tag
+}
+
+// ExtractTagFromData extracts a tag from the data object
+func ExtractTagFromData(response map[string]any) map[string]any {
+	data := ExtractData(response)
+	if data == nil {
+		return nil
+	}
+	tag, ok := data["tag"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return tag
+}
+
+// ExtractTags extracts the tags array from the response
+func ExtractTags(response map[string]any) []any {
+	tags, ok := response["tags"].([]any)
+	if !ok {
+		return nil
+	}
+	return tags
+}
+
+// TagAt returns the tag at the given index as a map
+func TagAt(tags []any, index int) map[string]any {
+	if index >= len(tags) {
+		return nil
+	}
+	tag, ok := tags[index].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return tag
+}
