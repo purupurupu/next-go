@@ -111,8 +111,9 @@ func (f *TestFixture) CreateTodoWithPosition(userID int64, title string, positio
 	return todo
 }
 
-// CallAuth calls a handler with JWT authentication middleware
-func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
+// CallAuthGeneric calls a handler with JWT authentication middleware
+// This is the unified method for all resource types (todos, categories, tags)
+func (f *TestFixture) CallAuthGeneric(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
 	var req *http.Request
 	if body != "" {
 		req = httptest.NewRequest(method, path, strings.NewReader(body))
@@ -125,12 +126,22 @@ func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc ech
 	rec := httptest.NewRecorder()
 	c := f.Echo.NewContext(req, rec)
 
-	// Extract path params
-	if strings.Contains(path, "/todos/") && !strings.HasSuffix(path, "/todos/update_order") {
-		parts := strings.Split(path, "/todos/")
-		if len(parts) > 1 {
-			c.SetParamNames("id")
-			c.SetParamValues(parts[1])
+	// Extract path params for any resource type
+	// Pattern: /api/v1/{resource}/{id} or /{resource}/{id}
+	resources := []string{"todos", "categories", "tags"}
+	for _, resource := range resources {
+		pattern := "/" + resource + "/"
+		if strings.Contains(path, pattern) {
+			// Skip special endpoints like /todos/update_order
+			if resource == "todos" && strings.HasSuffix(path, "/update_order") {
+				continue
+			}
+			parts := strings.Split(path, pattern)
+			if len(parts) > 1 && parts[1] != "" {
+				c.SetParamNames("id")
+				c.SetParamValues(parts[1])
+				break
+			}
 		}
 	}
 
@@ -139,6 +150,11 @@ func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc ech
 	err := wrappedHandler(c)
 
 	return rec, err
+}
+
+// CallAuth calls a handler with JWT authentication middleware (alias for CallAuthGeneric)
+func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
+	return f.CallAuthGeneric(token, method, path, body, handlerFunc)
 }
 
 // TodoPath returns the path for a specific todo ID
@@ -189,62 +205,12 @@ func (f *TestFixture) CreateTodoWithCategory(userID int64, title string, categor
 	return todo
 }
 
-// CallAuthCategory calls a category handler with authentication
+// CallAuthCategory calls a category handler with authentication (alias for CallAuthGeneric)
 func (f *TestFixture) CallAuthCategory(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
-	var req *http.Request
-	if body != "" {
-		req = httptest.NewRequest(method, path, strings.NewReader(body))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	} else {
-		req = httptest.NewRequest(method, path, nil)
-	}
-	req.Header.Set("Authorization", token)
-
-	rec := httptest.NewRecorder()
-	c := f.Echo.NewContext(req, rec)
-
-	// Extract path params
-	if strings.Contains(path, "/categories/") {
-		parts := strings.Split(path, "/categories/")
-		if len(parts) > 1 && parts[1] != "" {
-			c.SetParamNames("id")
-			c.SetParamValues(parts[1])
-		}
-	}
-
-	authMiddleware := middleware.JWTAuth(TestConfig, f.UserRepo, f.DenylistRepo)
-	wrappedHandler := authMiddleware(handlerFunc)
-	err := wrappedHandler(c)
-
-	return rec, err
+	return f.CallAuthGeneric(token, method, path, body, handlerFunc)
 }
 
-// CallAuthTag calls a tag handler with authentication
+// CallAuthTag calls a tag handler with authentication (alias for CallAuthGeneric)
 func (f *TestFixture) CallAuthTag(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
-	var req *http.Request
-	if body != "" {
-		req = httptest.NewRequest(method, path, strings.NewReader(body))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	} else {
-		req = httptest.NewRequest(method, path, nil)
-	}
-	req.Header.Set("Authorization", token)
-
-	rec := httptest.NewRecorder()
-	c := f.Echo.NewContext(req, rec)
-
-	// Extract path params
-	if strings.Contains(path, "/tags/") {
-		parts := strings.Split(path, "/tags/")
-		if len(parts) > 1 && parts[1] != "" {
-			c.SetParamNames("id")
-			c.SetParamValues(parts[1])
-		}
-	}
-
-	authMiddleware := middleware.JWTAuth(TestConfig, f.UserRepo, f.DenylistRepo)
-	wrappedHandler := authMiddleware(handlerFunc)
-	err := wrappedHandler(c)
-
-	return rec, err
+	return f.CallAuthGeneric(token, method, path, body, handlerFunc)
 }
