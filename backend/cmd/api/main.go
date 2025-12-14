@@ -122,6 +122,7 @@ func main() {
 
 	// Todo routes
 	api.GET("/todos", todoHandler.List)
+	api.GET("/todos/search", todoHandler.Search) // Must be before /todos/:id
 	api.POST("/todos", todoHandler.Create)
 	api.GET("/todos/:id", todoHandler.Show)
 	api.PATCH("/todos/:id", todoHandler.Update)
