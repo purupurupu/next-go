@@ -37,9 +37,36 @@ type JwtDenylistRepositoryInterface interface {
 	CleanupExpired() error
 }
 
+// CategoryRepositoryInterface defines the contract for category repository operations
+type CategoryRepositoryInterface interface {
+	FindAllByUserID(userID int64) ([]model.Category, error)
+	FindByID(id, userID int64) (*model.Category, error)
+	ExistsByName(name string, userID int64, excludeID *int64) (bool, error)
+	Create(category *model.Category) error
+	Update(category *model.Category) error
+	Delete(id, userID int64) error
+	IncrementTodosCount(categoryID int64) error
+	DecrementTodosCount(categoryID int64) error
+	RecalculateTodosCount(categoryID int64) error
+}
+
+// TagRepositoryInterface defines the contract for tag repository operations
+type TagRepositoryInterface interface {
+	FindAllByUserID(userID int64) ([]model.Tag, error)
+	FindByID(id, userID int64) (*model.Tag, error)
+	ExistsByName(name string, userID int64, excludeID *int64) (bool, error)
+	Create(tag *model.Tag) error
+	Update(tag *model.Tag) error
+	Delete(id, userID int64) error
+	FindByIDs(ids []int64, userID int64) ([]model.Tag, error)
+	ValidateTagOwnership(tagIDs []int64, userID int64) (bool, error)
+}
+
 // Ensure concrete types implement interfaces
 var (
-	_ UserRepositoryInterface       = (*UserRepository)(nil)
-	_ TodoRepositoryInterface       = (*TodoRepository)(nil)
+	_ UserRepositoryInterface        = (*UserRepository)(nil)
+	_ TodoRepositoryInterface        = (*TodoRepository)(nil)
 	_ JwtDenylistRepositoryInterface = (*JwtDenylistRepository)(nil)
+	_ CategoryRepositoryInterface    = (*CategoryRepository)(nil)
+	_ TagRepositoryInterface         = (*TagRepository)(nil)
 )
