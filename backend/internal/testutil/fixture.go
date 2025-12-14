@@ -15,6 +15,7 @@ import (
 	"todo-api/internal/middleware"
 	"todo-api/internal/model"
 	"todo-api/internal/repository"
+	"todo-api/internal/service"
 )
 
 // TestFixture holds all dependencies needed for handler tests
@@ -44,8 +45,12 @@ func SetupTestFixture(t *testing.T) *TestFixture {
 	categoryRepo := repository.NewCategoryRepository(db)
 	tagRepo := repository.NewTagRepository(db)
 
+	// Initialize services
+	todoService := service.NewTodoService(todoRepo, categoryRepo)
+
+	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, TestConfig)
-	todoHandler := handler.NewTodoHandler(todoRepo, categoryRepo)
+	todoHandler := handler.NewTodoHandler(todoService, todoRepo)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo)
 	tagHandler := handler.NewTagHandler(tagRepo)
 
@@ -157,19 +162,24 @@ func (f *TestFixture) CallAuth(token, method, path, body string, handlerFunc ech
 	return f.CallAuthGeneric(token, method, path, body, handlerFunc)
 }
 
+// ResourcePath returns the path for a specific resource by ID
+func ResourcePath(resource string, id int64) string {
+	return fmt.Sprintf("/api/v1/%s/%d", resource, id)
+}
+
 // TodoPath returns the path for a specific todo ID
 func TodoPath(id int64) string {
-	return fmt.Sprintf("/api/v1/todos/%d", id)
+	return ResourcePath("todos", id)
 }
 
 // CategoryPath returns the path for a specific category ID
 func CategoryPath(id int64) string {
-	return fmt.Sprintf("/api/v1/categories/%d", id)
+	return ResourcePath("categories", id)
 }
 
 // TagPath returns the path for a specific tag ID
 func TagPath(id int64) string {
-	return fmt.Sprintf("/api/v1/tags/%d", id)
+	return ResourcePath("tags", id)
 }
 
 // CreateCategory creates a test category for a user

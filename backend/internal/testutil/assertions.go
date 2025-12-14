@@ -58,6 +58,14 @@ func ExtractObject(response map[string]any, key string) map[string]any {
 	return obj
 }
 
+// ExtractObjectOrFail extracts an object by key from the response and fails the test if not found
+func ExtractObjectOrFail(t *testing.T, response map[string]any, key string) map[string]any {
+	t.Helper()
+	obj := ExtractObject(response, key)
+	require.NotNil(t, obj, "expected key '%s' to be present in response", key)
+	return obj
+}
+
 // ExtractObjectFromData extracts an object by key from the data object
 func ExtractObjectFromData(response map[string]any, key string) map[string]any {
 	data := ExtractData(response)
@@ -73,6 +81,14 @@ func ExtractArray(response map[string]any, key string) []any {
 	if !ok {
 		return nil
 	}
+	return arr
+}
+
+// ExtractArrayOrFail extracts an array by key from the response and fails the test if not found
+func ExtractArrayOrFail(t *testing.T, response map[string]any, key string) []any {
+	t.Helper()
+	arr := ExtractArray(response, key)
+	require.NotNil(t, arr, "expected key '%s' to be present in response", key)
 	return arr
 }
 
