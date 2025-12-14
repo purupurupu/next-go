@@ -2,6 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -306,4 +309,304 @@ func (h *TodoHandler) UpdateOrder(c echo.Context) error {
 	}
 
 	return response.Message(c, "Order updated successfully")
+}
+
+// SearchMetaResponse represents the meta information in search response
+type SearchMetaResponse struct {
+	Total          int64          `json:"total"`
+	CurrentPage    int            `json:"current_page"`
+	TotalPages     int            `json:"total_pages"`
+	PerPage        int            `json:"per_page"`
+	FiltersApplied map[string]any `json:"filters_applied"`
+}
+
+// SearchSuggestion represents a search suggestion
+type SearchSuggestion struct {
+	Type           string   `json:"type"`
+	Message        string   `json:"message"`
+	CurrentFilters []string `json:"current_filters,omitempty"`
+}
+
+// SearchResponse represents the response for search endpoint
+type SearchResponse struct {
+	Data        []TodoResponse     `json:"data"`
+	Meta        SearchMetaResponse `json:"meta"`
+	Suggestions []SearchSuggestion `json:"suggestions,omitempty"`
+}
+
+// Search searches todos with filters
+// GET /api/v1/todos/search
+func (h *TodoHandler) Search(c echo.Context) error {
+	currentUser, err := GetCurrentUserOrFail(c)
+	if err != nil {
+		return err
+	}
+
+	// Parse search parameters
+	searchInput, err := h.parseSearchParams(c)
+	if err != nil {
+		return err
+	}
+	searchInput.UserID = currentUser.ID
+
+	// Set defaults before calling service (service also validates)
+	if searchInput.Page < 1 {
+		searchInput.Page = 1
+	}
+	if searchInput.PerPage < 1 {
+		searchInput.PerPage = 20
+	}
+	if searchInput.PerPage > 100 {
+		searchInput.PerPage = 100
+	}
+
+	// Execute search
+	result, err := h.todoService.Search(*searchInput)
+	if err != nil {
+		return err
+	}
+
+	// Convert to response format
+	todoResponses := make([]TodoResponse, len(result.Todos))
+	for i, todo := range result.Todos {
+		todoResponses[i] = toTodoResponse(&todo)
+	}
+
+	// Calculate total pages
+	totalPages := 0
+	if result.Total > 0 {
+		totalPages = int((result.Total + int64(searchInput.PerPage) - 1) / int64(searchInput.PerPage))
+	}
+
+	// Build active filters map
+	filtersApplied := h.buildFiltersApplied(searchInput)
+
+	// Generate suggestions for empty results
+	suggestions := h.generateSuggestions(result, searchInput)
+
+	return c.JSON(http.StatusOK, SearchResponse{
+		Data: todoResponses,
+		Meta: SearchMetaResponse{
+			Total:          result.Total,
+			CurrentPage:    searchInput.Page,
+			TotalPages:     totalPages,
+			PerPage:        searchInput.PerPage,
+			FiltersApplied: filtersApplied,
+		},
+		Suggestions: suggestions,
+	})
+}
+
+// parseSearchParams parses query parameters for search
+func (h *TodoHandler) parseSearchParams(c echo.Context) (*service.SearchInput, error) {
+	input := &service.SearchInput{}
+
+	// Text search query
+	input.Query = c.QueryParam("q")
+
+	// Parse status filter (supports both status[] and status with comma-separated values)
+	statusParams := c.QueryParams()["status[]"]
+	if len(statusParams) == 0 {
+		statusCSV := c.QueryParam("status")
+		if statusCSV != "" {
+			statusParams = strings.Split(statusCSV, ",")
+		}
+	}
+	for _, s := range statusParams {
+		switch strings.TrimSpace(s) {
+		case "pending":
+			input.Statuses = append(input.Statuses, model.StatusPending)
+		case "in_progress":
+			input.Statuses = append(input.Statuses, model.StatusInProgress)
+		case "completed":
+			input.Statuses = append(input.Statuses, model.StatusCompleted)
+		}
+	}
+
+	// Parse priority filter (supports both priority[] and priority)
+	priorityParams := c.QueryParams()["priority[]"]
+	if len(priorityParams) == 0 {
+		priorityCSV := c.QueryParam("priority")
+		if priorityCSV != "" {
+			priorityParams = strings.Split(priorityCSV, ",")
+		}
+	}
+	if len(priorityParams) > 0 {
+		// Use the first priority value
+		switch strings.TrimSpace(priorityParams[0]) {
+		case "low":
+			p := model.PriorityLow
+			input.Priority = &p
+		case "medium":
+			p := model.PriorityMedium
+			input.Priority = &p
+		case "high":
+			p := model.PriorityHigh
+			input.Priority = &p
+		}
+	}
+
+	// Parse category filter (-1 or "null" means uncategorized)
+	categoryID := c.QueryParam("category_id")
+	if categoryID != "" {
+		if categoryID == "-1" || categoryID == "null" {
+			input.CategoryIDNull = true
+		} else {
+			id, err := strconv.ParseInt(categoryID, 10, 64)
+			if err == nil {
+				input.CategoryID = &id
+			}
+		}
+	}
+
+	// Parse tag filter (supports both tag_ids[] and tag_ids)
+	tagParams := c.QueryParams()["tag_ids[]"]
+	if len(tagParams) == 0 {
+		tagCSV := c.QueryParam("tag_ids")
+		if tagCSV != "" {
+			tagParams = strings.Split(tagCSV, ",")
+		}
+	}
+	for _, idStr := range tagParams {
+		id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
+		if err == nil {
+			input.TagIDs = append(input.TagIDs, id)
+		}
+	}
+
+	// Tag mode (any or all)
+	input.TagMode = c.QueryParam("tag_mode")
+
+	// Parse date range filters
+	if dueDateFrom := c.QueryParam("due_date_from"); dueDateFrom != "" {
+		t, err := time.Parse("2006-01-02", dueDateFrom)
+		if err == nil {
+			input.DueDateFrom = &t
+		}
+	}
+	if dueDateTo := c.QueryParam("due_date_to"); dueDateTo != "" {
+		t, err := time.Parse("2006-01-02", dueDateTo)
+		if err == nil {
+			input.DueDateTo = &t
+		}
+	}
+
+	// Sort parameters
+	input.SortBy = c.QueryParam("sort_by")
+	input.SortOrder = c.QueryParam("sort_order")
+
+	// Pagination
+	if page := c.QueryParam("page"); page != "" {
+		if p, err := strconv.Atoi(page); err == nil {
+			input.Page = p
+		}
+	}
+	if perPage := c.QueryParam("per_page"); perPage != "" {
+		if pp, err := strconv.Atoi(perPage); err == nil {
+			input.PerPage = pp
+		}
+	}
+
+	return input, nil
+}
+
+// buildFiltersApplied builds a map of applied filters for the response
+func (h *TodoHandler) buildFiltersApplied(input *service.SearchInput) map[string]any {
+	filters := make(map[string]any)
+
+	if input.Query != "" {
+		filters["search"] = input.Query
+	}
+
+	if len(input.Statuses) > 0 {
+		statusStrings := make([]string, len(input.Statuses))
+		for i, s := range input.Statuses {
+			switch s {
+			case model.StatusPending:
+				statusStrings[i] = "pending"
+			case model.StatusInProgress:
+				statusStrings[i] = "in_progress"
+			case model.StatusCompleted:
+				statusStrings[i] = "completed"
+			}
+		}
+		filters["status"] = statusStrings
+	}
+
+	if input.Priority != nil {
+		switch *input.Priority {
+		case model.PriorityLow:
+			filters["priority"] = "low"
+		case model.PriorityMedium:
+			filters["priority"] = "medium"
+		case model.PriorityHigh:
+			filters["priority"] = "high"
+		}
+	}
+
+	if input.CategoryID != nil {
+		filters["category_id"] = *input.CategoryID
+	} else if input.CategoryIDNull {
+		filters["category_id"] = nil
+	}
+
+	if len(input.TagIDs) > 0 {
+		filters["tag_ids"] = input.TagIDs
+		filters["tag_mode"] = input.TagMode
+	}
+
+	if input.DueDateFrom != nil {
+		filters["due_date_from"] = input.DueDateFrom.Format("2006-01-02")
+	}
+	if input.DueDateTo != nil {
+		filters["due_date_to"] = input.DueDateTo.Format("2006-01-02")
+	}
+
+	return filters
+}
+
+// generateSuggestions generates suggestions for empty search results
+func (h *TodoHandler) generateSuggestions(result *service.SearchResult, input *service.SearchInput) []SearchSuggestion {
+	if result.Total > 0 || !result.HasFilters {
+		return nil
+	}
+
+	var suggestions []SearchSuggestion
+
+	if input.Query != "" {
+		suggestions = append(suggestions, SearchSuggestion{
+			Type:    "spelling",
+			Message: "スペルを確認してください",
+		})
+	}
+
+	if result.HasFilters {
+		var currentFilters []string
+		if input.Query != "" {
+			currentFilters = append(currentFilters, "検索キーワード")
+		}
+		if len(input.Statuses) > 0 {
+			currentFilters = append(currentFilters, "ステータス")
+		}
+		if input.Priority != nil {
+			currentFilters = append(currentFilters, "優先度")
+		}
+		if input.CategoryID != nil || input.CategoryIDNull {
+			currentFilters = append(currentFilters, "カテゴリ")
+		}
+		if len(input.TagIDs) > 0 {
+			currentFilters = append(currentFilters, "タグ")
+		}
+		if input.DueDateFrom != nil || input.DueDateTo != nil {
+			currentFilters = append(currentFilters, "期限")
+		}
+
+		suggestions = append(suggestions, SearchSuggestion{
+			Type:           "reduce_filters",
+			Message:        "フィルター条件を減らしてみてください",
+			CurrentFilters: currentFilters,
+		})
+	}
+
+	return suggestions
 }
