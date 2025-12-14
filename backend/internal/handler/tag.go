@@ -195,7 +195,7 @@ func (h *TagHandler) Update(c echo.Context) error {
 		return errors.InternalError()
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
+	return response.Success(c, map[string]any{
 		"tag": toTagResponse(tag),
 	})
 }

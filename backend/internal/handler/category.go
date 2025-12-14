@@ -198,7 +198,7 @@ func (h *CategoryHandler) Update(c echo.Context) error {
 		return errors.InternalError()
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
+	return response.Success(c, map[string]any{
 		"category": toCategoryResponse(category),
 	})
 }
