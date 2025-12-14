@@ -4,6 +4,12 @@
 
 The Todo History API provides read-only access to the change history of todos. Every significant change to a todo is automatically tracked, creating an audit trail of modifications.
 
+## Implementation Status
+
+| Backend | Status |
+|---------|--------|
+| Go (Echo) | ✅ Implemented |
+
 ## Authentication Required
 
 All history endpoints require a valid JWT token in the Authorization header:
@@ -15,82 +21,99 @@ Authorization: Bearer <jwt_token>
 
 ### List Todo History
 
-Get all history entries for a specific todo.
+Get all history entries for a specific todo with pagination support.
 
-**Endpoint:** `GET /api/todos/:todo_id/histories`
+**Endpoint:** `GET /api/v1/todos/:todo_id/histories`
 
 **URL Parameters:**
 - `todo_id` (required): ID of the todo
 
+**Query Parameters:**
+- `page` (optional): Page number (default: 1)
+- `per_page` (optional): Items per page (default: 20, max: 100)
+
 **Success Response (200 OK):**
 ```json
-[
-  {
-    "id": 1,
-    "action": "created",
-    "changes": {
-      "title": "Complete project documentation",
-      "priority": "high",
-      "status": "pending"
-    },
-    "user": {
+{
+  "histories": [
+    {
       "id": 1,
-      "name": "John Doe",
-      "email": "john@example.com"
+      "todo_id": 1,
+      "action": "created",
+      "changes": {
+        "title": "Complete project documentation",
+        "priority": 2,
+        "status": 0
+      },
+      "user": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com"
+      },
+      "created_at": "2024-01-01T10:00:00Z",
+      "human_readable_change": "Todoが作成されました"
     },
-    "created_at": "2024-01-01T10:00:00.000Z",
-    "human_readable_change": "タスクが作成されました"
-  },
-  {
-    "id": 2,
-    "action": "updated",
-    "changes": {
-      "title": ["Complete project documentation", "Complete API documentation"],
-      "description": [null, "Write comprehensive API docs with examples"]
-    },
-    "user": {
-      "id": 1,
-      "name": "John Doe",
-      "email": "john@example.com"
-    },
-    "created_at": "2024-01-01T11:00:00.000Z",
-    "human_readable_change": "タイトルが「Complete project documentation」から「Complete API documentation」に変更され、説明が追加されました"
-  },
-  {
-    "id": 3,
-    "action": "status_changed",
-    "changes": {
-      "status": ["pending", "in_progress"]
-    },
-    "user": {
-      "id": 1,
-      "name": "John Doe",
-      "email": "john@example.com"
-    },
-    "created_at": "2024-01-01T12:00:00.000Z",
-    "human_readable_change": "ステータスが「未着手」から「進行中」に変更されました"
-  },
-  {
-    "id": 4,
-    "action": "priority_changed",
-    "changes": {
-      "priority": ["high", "medium"]
-    },
-    "user": {
+    {
       "id": 2,
-      "name": "Jane Smith",
-      "email": "jane@example.com"
+      "todo_id": 1,
+      "action": "updated",
+      "changes": {
+        "title": ["Complete project documentation", "Complete API documentation"],
+        "description": [null, "Write comprehensive API docs with examples"]
+      },
+      "user": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com"
+      },
+      "created_at": "2024-01-01T11:00:00Z",
+      "human_readable_change": "タイトルが「Complete project documentation」から「Complete API documentation」に変更されました"
     },
-    "created_at": "2024-01-02T10:00:00.000Z",
-    "human_readable_change": "優先度が「高」から「中」に変更されました"
+    {
+      "id": 3,
+      "todo_id": 1,
+      "action": "status_changed",
+      "changes": {
+        "status": [0, 1]
+      },
+      "user": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com"
+      },
+      "created_at": "2024-01-01T12:00:00Z",
+      "human_readable_change": "ステータスが「未着手」から「進行中」に変更されました"
+    },
+    {
+      "id": 4,
+      "todo_id": 1,
+      "action": "priority_changed",
+      "changes": {
+        "priority": [2, 1]
+      },
+      "user": {
+        "id": 2,
+        "name": "Jane Smith",
+        "email": "jane@example.com"
+      },
+      "created_at": "2024-01-02T10:00:00Z",
+      "human_readable_change": "優先度が「高」から「中」に変更されました"
+    }
+  ],
+  "meta": {
+    "total": 4,
+    "current_page": 1,
+    "total_pages": 1,
+    "per_page": 20
   }
-]
+}
 ```
 
 **Notes:**
-- History entries are returned in chronological order (oldest first)
-- Empty array `[]` if no history exists
+- History entries are returned in reverse chronological order (newest first)
+- Empty array `[]` in histories if no history exists
 - `human_readable_change` provides a Japanese description of the change
+- Pagination metadata is included in `meta` object
 
 ## History Entry Structure
 
@@ -169,15 +192,24 @@ The `human_readable_change` field provides user-friendly descriptions in Japanes
 
 ## Frontend Integration Example
 
-```javascript
-class TodoHistoryApiClient {
-  constructor(httpClient) {
-    this.httpClient = httpClient;
+```typescript
+// Using ApiClient pattern from the project
+class TodoHistoryApiClient extends ApiClient {
+  async getHistory(todoId: number, page = 1, perPage = 20) {
+    return this.get<HistoryListResponse>(
+      `/todos/${todoId}/histories?page=${page}&per_page=${perPage}`
+    );
   }
+}
 
-  async getHistory(todoId) {
-    return this.httpClient.get(`/api/todos/${todoId}/histories`);
-  }
+interface HistoryListResponse {
+  histories: TodoHistory[];
+  meta: {
+    total: number;
+    current_page: number;
+    total_pages: number;
+    per_page: number;
+  };
 }
 
 // Usage in React component
@@ -211,14 +243,15 @@ function TodoHistory({ todoId }) {
 
 ## Performance Considerations
 
-1. **Automatic Tracking**: History is created automatically via ActiveRecord callbacks
+1. **Automatic Tracking**: History is created automatically via TodoService layer
 2. **Read-only Access**: History entries cannot be modified or deleted via API
-3. **Efficient Storage**: Only changed fields are stored in the database
-4. **User Context**: Requires `current_user` to be set on todo model for tracking
+3. **Efficient Storage**: Only changed fields are stored in the database as JSONB
+4. **User Context**: User ID is passed through JWT authentication context
+5. **Pagination**: Built-in pagination support for todos with extensive history
 
 ## Notes
 
 - History tracking is automatic and cannot be disabled
 - All history entries are permanent and cannot be deleted
 - The system tracks who made each change for accountability
-- Consider implementing pagination for todos with extensive history
+- No duplicate history is created when updating with same values (detectChanges logic)
