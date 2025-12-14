@@ -1,27 +1,27 @@
-import { HttpClient } from "@/lib/api-client";
+import { ApiClient } from "@/lib/api-client";
 import type { Tag, CreateTagData, UpdateTagData } from "../types/tag";
 
-export class TagApiClient extends HttpClient {
+export class TagApiClient extends ApiClient {
   async getTags(): Promise<Tag[]> {
-    const response = await this.get<Tag[]>("/api/v1/tags");
+    const response = await this.get<Tag[]>("/tags");
     // 配列であることを保証
     return Array.isArray(response) ? response : [];
   }
 
   async getTag(id: number): Promise<Tag> {
-    return this.get<Tag>(`/api/v1/tags/${id}`);
+    return this.get<Tag>(`/tags/${id}`);
   }
 
   async createTag(data: CreateTagData): Promise<Tag> {
-    return this.post<Tag>("/api/v1/tags", { tag: data });
+    return this.post<Tag>("/tags", { tag: data });
   }
 
   async updateTag(id: number, data: UpdateTagData): Promise<Tag> {
-    return this.patch<Tag>(`/api/v1/tags/${id}`, { tag: data });
+    return this.patch<Tag>(`/tags/${id}`, { tag: data });
   }
 
   async deleteTag(id: number): Promise<void> {
-    return this.delete(`/api/v1/tags/${id}`);
+    return this.delete(`/tags/${id}`);
   }
 }
 

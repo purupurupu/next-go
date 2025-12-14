@@ -1,4 +1,4 @@
-import { httpClient } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import { Note, NoteRevisionsResponse, NotesListResponse } from "../types";
 
 export interface NotesQuery {
@@ -20,9 +20,9 @@ export async function fetchNotes(params: NotesQuery = {}): Promise<NotesListResp
   if (params.per_page) searchParams.set("per_page", String(params.per_page));
 
   const query = searchParams.toString();
-  const endpoint = query ? `/api/v1/notes?${query}` : "/api/v1/notes";
+  const endpoint = query ? `/notes?${query}` : "/notes";
 
-  return httpClient.get<NotesListResponse>(endpoint);
+  return apiClient.get<NotesListResponse>(endpoint);
 }
 
 export interface NotePayload {
@@ -34,22 +34,22 @@ export interface NotePayload {
 }
 
 export async function createNote(payload: NotePayload = {}): Promise<Note> {
-  return httpClient.post<Note>("/api/v1/notes", { note: payload });
+  return apiClient.post<Note>("/notes", { note: payload });
 }
 
 export async function updateNote(id: number, payload: NotePayload): Promise<Note> {
-  return httpClient.patch<Note>(`/api/v1/notes/${id}`, { note: payload });
+  return apiClient.patch<Note>(`/notes/${id}`, { note: payload });
 }
 
 export async function deleteNote(id: number, force = false): Promise<void> {
-  const endpoint = force ? `/api/v1/notes/${id}?force=true` : `/api/v1/notes/${id}`;
-  await httpClient.delete<void>(endpoint);
+  const endpoint = force ? `/notes/${id}?force=true` : `/notes/${id}`;
+  await apiClient.delete<void>(endpoint);
 }
 
 export async function fetchRevisions(noteId: number): Promise<NoteRevisionsResponse> {
-  return httpClient.get<NoteRevisionsResponse>(`/api/v1/notes/${noteId}/revisions`);
+  return apiClient.get<NoteRevisionsResponse>(`/notes/${noteId}/revisions`);
 }
 
 export async function restoreRevision(noteId: number, revisionId: number): Promise<Note> {
-  return httpClient.post<Note>(`/api/v1/notes/${noteId}/revisions/${revisionId}/restore`);
+  return apiClient.post<Note>(`/notes/${noteId}/revisions/${revisionId}/restore`);
 }

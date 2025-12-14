@@ -1,4 +1,4 @@
-import { HttpClient, ApiError } from "@/lib/api-client";
+import { ApiClient, ApiError } from "@/lib/api-client";
 import type {
   Todo,
   CreateTodoData,
@@ -8,15 +8,15 @@ import type {
   TodoSearchResponse,
 } from "@/features/todo/types/todo";
 
-class TodoApiClient extends HttpClient {
+class TodoApiClient extends ApiClient {
   async getTodos(): Promise<Todo[]> {
-    const response = await this.get<Todo[]>("/api/v1/todos");
+    const response = await this.get<Todo[]>("/todos");
     // 配列であることを保証
     return Array.isArray(response) ? response : [];
   }
 
   async getTodoById(id: number): Promise<Todo> {
-    return this.get<Todo>(`/api/v1/todos/${id}`);
+    return this.get<Todo>(`/todos/${id}`);
   }
 
   async searchTodos(params: TodoSearchParams): Promise<TodoSearchResponse> {
@@ -73,7 +73,7 @@ class TodoApiClient extends HttpClient {
     if (params.page) queryParams.append("page", String(params.page));
     if (params.per_page) queryParams.append("per_page", String(params.per_page));
 
-    const url = queryParams.toString() ? `/api/v1/todos/search?${queryParams}` : "/api/v1/todos/search";
+    const url = queryParams.toString() ? `/todos/search?${queryParams}` : "/todos/search";
     const response = await this.get<TodoSearchResponse>(url);
     // dataプロパティが配列であることを保証
     if (response && typeof response === "object" && "data" in response) {
@@ -108,9 +108,9 @@ class TodoApiClient extends HttpClient {
       }
       files.forEach((file) => formData.append("todo[files][]", file));
 
-      return this.uploadFile<Todo>("/api/v1/todos", formData);
+      return this.uploadFile<Todo>("/todos", formData);
     }
-    return this.post<Todo>("/api/v1/todos", { todo: data });
+    return this.post<Todo>("/todos", { todo: data });
   }
 
   async updateTodo(id: number, data: UpdateTodoData, files?: File[]): Promise<Todo> {
@@ -128,26 +128,26 @@ class TodoApiClient extends HttpClient {
       }
       files.forEach((file) => formData.append("todo[files][]", file));
 
-      return this.uploadFile<Todo>(`/api/v1/todos/${id}`, formData, "PATCH");
+      return this.uploadFile<Todo>(`/todos/${id}`, formData, "PATCH");
     }
-    return this.put<Todo>(`/api/v1/todos/${id}`, { todo: data });
+    return this.put<Todo>(`/todos/${id}`, { todo: data });
   }
 
   async deleteTodo(id: number): Promise<void> {
-    return this.delete<void>(`/api/v1/todos/${id}`);
+    return this.delete<void>(`/todos/${id}`);
   }
 
   async updateTodoOrder(todos: UpdateOrderData[]): Promise<void> {
-    return this.patch<void>("/api/v1/todos/update_order", { todos });
+    return this.patch<void>("/todos/update_order", { todos });
   }
 
   async updateTodoTags(id: number, tagIds: number[]): Promise<Todo> {
-    return this.patch<Todo>(`/api/v1/todos/${id}/tags`, { tag_ids: tagIds });
+    return this.patch<Todo>(`/todos/${id}/tags`, { tag_ids: tagIds });
   }
 
   // File operations
   async deleteTodoFile(todoId: number, fileId: string | number): Promise<Todo> {
-    return this.delete<Todo>(`/api/v1/todos/${todoId}/files/${fileId}`);
+    return this.delete<Todo>(`/todos/${todoId}/files/${fileId}`);
   }
 
   async downloadFile(url: string): Promise<Blob> {
