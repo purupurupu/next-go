@@ -73,7 +73,7 @@ func (h *TagHandler) List(c echo.Context) error {
 
 	tags, err := h.tagRepo.FindAllByUserID(currentUser.ID)
 	if err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TagHandler.List: failed to fetch tags")
 	}
 
 	tagResponses := make([]TagResponse, len(tags))
@@ -104,7 +104,7 @@ func (h *TagHandler) Show(c echo.Context) error {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Tag", id)
 		}
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TagHandler.Show: failed to fetch tag")
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -128,7 +128,7 @@ func (h *TagHandler) Create(c echo.Context) error {
 	// Check for duplicate name (names are normalized to lowercase in BeforeSave)
 	exists, err := h.tagRepo.ExistsByName(req.Tag.Name, currentUser.ID, nil)
 	if err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TagHandler.Create: failed to check duplicate name")
 	}
 	if exists {
 		return errors.DuplicateResource("Tag", "name")
@@ -141,7 +141,7 @@ func (h *TagHandler) Create(c echo.Context) error {
 	}
 
 	if err := h.tagRepo.Create(tag); err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TagHandler.Create: failed to create tag")
 	}
 
 	return response.Created(c, map[string]any{
@@ -167,7 +167,7 @@ func (h *TagHandler) Update(c echo.Context) error {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Tag", id)
 		}
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TagHandler.Update: failed to fetch tag")
 	}
 
 	var req UpdateTagRequest
@@ -179,7 +179,7 @@ func (h *TagHandler) Update(c echo.Context) error {
 	if req.Tag.Name != nil {
 		exists, err := h.tagRepo.ExistsByName(*req.Tag.Name, currentUser.ID, &id)
 		if err != nil {
-			return errors.InternalError()
+			return errors.InternalErrorWithLog(err, "TagHandler.Update: failed to check duplicate name")
 		}
 		if exists {
 			return errors.DuplicateResource("Tag", "name")
@@ -192,7 +192,7 @@ func (h *TagHandler) Update(c echo.Context) error {
 	}
 
 	if err := h.tagRepo.Update(tag); err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TagHandler.Update: failed to update tag")
 	}
 
 	return response.Success(c, map[string]any{
@@ -217,7 +217,7 @@ func (h *TagHandler) Delete(c echo.Context) error {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Tag", id)
 		}
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "TagHandler.Delete: failed to delete tag")
 	}
 
 	return response.NoContent(c)

@@ -148,7 +148,7 @@ func (h *AuthHandler) SignOut(c echo.Context) error {
 
 	// Add token to denylist
 	if err := h.authService.SignOut(claims.Jti, claims.ExpiresAt.Time); err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "AuthHandler.SignOut: failed to revoke token")
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{

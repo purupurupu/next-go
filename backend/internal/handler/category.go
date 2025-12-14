@@ -75,7 +75,7 @@ func (h *CategoryHandler) List(c echo.Context) error {
 
 	categories, err := h.categoryRepo.FindAllByUserID(currentUser.ID)
 	if err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "CategoryHandler.List: failed to fetch categories")
 	}
 
 	categoryResponses := make([]CategoryResponse, len(categories))
@@ -106,7 +106,7 @@ func (h *CategoryHandler) Show(c echo.Context) error {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Category", id)
 		}
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "CategoryHandler.Show: failed to fetch category")
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -130,7 +130,7 @@ func (h *CategoryHandler) Create(c echo.Context) error {
 	// Check for duplicate name (case-insensitive)
 	exists, err := h.categoryRepo.ExistsByName(req.Category.Name, currentUser.ID, nil)
 	if err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "CategoryHandler.Create: failed to check duplicate name")
 	}
 	if exists {
 		return errors.DuplicateResource("Category", "name")
@@ -143,7 +143,7 @@ func (h *CategoryHandler) Create(c echo.Context) error {
 	}
 
 	if err := h.categoryRepo.Create(category); err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "CategoryHandler.Create: failed to create category")
 	}
 
 	return response.Created(c, map[string]any{
@@ -169,7 +169,7 @@ func (h *CategoryHandler) Update(c echo.Context) error {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Category", id)
 		}
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "CategoryHandler.Update: failed to fetch category")
 	}
 
 	var req UpdateCategoryRequest
@@ -181,7 +181,7 @@ func (h *CategoryHandler) Update(c echo.Context) error {
 	if req.Category.Name != nil && *req.Category.Name != category.Name {
 		exists, err := h.categoryRepo.ExistsByName(*req.Category.Name, currentUser.ID, &id)
 		if err != nil {
-			return errors.InternalError()
+			return errors.InternalErrorWithLog(err, "CategoryHandler.Update: failed to check duplicate name")
 		}
 		if exists {
 			return errors.DuplicateResource("Category", "name")
@@ -194,7 +194,7 @@ func (h *CategoryHandler) Update(c echo.Context) error {
 	}
 
 	if err := h.categoryRepo.Update(category); err != nil {
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "CategoryHandler.Update: failed to update category")
 	}
 
 	return response.Success(c, map[string]any{
@@ -219,7 +219,7 @@ func (h *CategoryHandler) Delete(c echo.Context) error {
 		if err == gorm.ErrRecordNotFound {
 			return errors.NotFound("Category", id)
 		}
-		return errors.InternalError()
+		return errors.InternalErrorWithLog(err, "CategoryHandler.Delete: failed to delete category")
 	}
 
 	return response.NoContent(c)
