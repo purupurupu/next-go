@@ -61,6 +61,24 @@ type TagRepositoryInterface interface {
 	ValidateTagOwnership(tagIDs []int64, userID int64) (bool, error)
 }
 
+// CommentRepositoryInterface defines the contract for comment repository operations
+type CommentRepositoryInterface interface {
+	FindAllByCommentable(commentableType string, commentableID int64) ([]model.Comment, error)
+	FindByID(id int64) (*model.Comment, error)
+	FindByIDWithoutDeleted(id int64) (*model.Comment, error)
+	Create(comment *model.Comment) error
+	Update(comment *model.Comment) error
+	SoftDelete(id int64) error
+	ExistsByID(id int64) (bool, error)
+}
+
+// TodoHistoryRepositoryInterface defines the contract for todo history repository operations
+type TodoHistoryRepositoryInterface interface {
+	Create(history *model.TodoHistory) error
+	FindByTodoID(todoID int64, page, perPage int) ([]model.TodoHistory, int64, error)
+	FindByTodoIDWithUser(todoID int64, page, perPage int) ([]model.TodoHistory, int64, error)
+}
+
 // Ensure concrete types implement interfaces
 var (
 	_ UserRepositoryInterface        = (*UserRepository)(nil)
@@ -68,4 +86,6 @@ var (
 	_ JwtDenylistRepositoryInterface = (*JwtDenylistRepository)(nil)
 	_ CategoryRepositoryInterface    = (*CategoryRepository)(nil)
 	_ TagRepositoryInterface         = (*TagRepository)(nil)
+	_ CommentRepositoryInterface     = (*CommentRepository)(nil)
+	_ TodoHistoryRepositoryInterface = (*TodoHistoryRepository)(nil)
 )
