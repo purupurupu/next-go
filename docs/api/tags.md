@@ -1,286 +1,294 @@
 # Tags API
 
-The Tags API allows users to create and manage tags for organizing their todos. Tags provide a flexible way to categorize and filter todos with a many-to-many relationship.
-
 ## Overview
 
-- **Base URL**: `/api/v1/tags`
-- **Authentication**: Required (JWT token in Authorization header)
-- **Content-Type**: `application/json`
-- **User Scope**: All tag operations are scoped to the authenticated user
+Tags provide a flexible way to label and organize todos using a many-to-many relationship. Each tag has a name and optional color for visual distinction.
 
-## Tag Object
+## Base URL
 
-### Attributes
-
-| Field | Type | Description | Constraints |
-|-------|------|-------------|-------------|
-| `id` | integer | Unique identifier | Auto-generated |
-| `name` | string | Tag name | Required, 1-30 characters, unique per user |
-| `color` | string | Hex color code | Required, format: `#RRGGBB` |
-| `created_at` | string | ISO 8601 timestamp | Auto-generated |
-| `updated_at` | string | ISO 8601 timestamp | Auto-updated |
-
-### Example Tag Object
-
-```json
-{
-  "id": 1,
-  "name": "urgent",
-  "color": "#EF4444",
-  "created_at": "2024-01-15T10:30:00.000Z",
-  "updated_at": "2024-01-15T10:30:00.000Z"
-}
+All endpoints are prefixed with `/api/v1`:
+```
+http://localhost:3001/api/v1/tags
 ```
 
 ## Endpoints
 
 ### List Tags
 
-Get all tags for the authenticated user.
+Retrieve all tags for the authenticated user, sorted by name.
 
+**Endpoint:** `GET /api/v1/tags`
+
+**Headers:**
 ```
-GET /api/v1/tags
+Authorization: Bearer <jwt_token>
 ```
 
-#### Response
-
+**Success Response (200 OK):**
 ```json
 {
   "tags": [
     {
       "id": 1,
-      "name": "urgent",
+      "user_id": 1,
+      "name": "important",
       "color": "#EF4444",
-      "created_at": "2024-01-15T10:30:00.000Z",
-      "updated_at": "2024-01-15T10:30:00.000Z"
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
     },
     {
       "id": 2,
+      "user_id": 1,
       "name": "work",
       "color": "#3B82F6",
-      "created_at": "2024-01-15T10:31:00.000Z",
-      "updated_at": "2024-01-15T10:31:00.000Z"
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
     }
   ]
 }
 ```
 
-**Notes**:
-- Tags are returned ordered by name (ascending)
-- Returns only tags belonging to the authenticated user
-
 ### Get Tag
 
-Get a specific tag by ID.
+Retrieve a specific tag by ID.
 
+**Endpoint:** `GET /api/v1/tags/:id`
+
+**Headers:**
 ```
-GET /api/v1/tags/:id
+Authorization: Bearer <jwt_token>
 ```
 
-#### Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Tag ID |
-
-#### Response
-
+**Success Response (200 OK):**
 ```json
 {
   "tag": {
     "id": 1,
-    "name": "urgent",
-    "color": "#EF4444",
-    "created_at": "2024-01-15T10:30:00.000Z",
-    "updated_at": "2024-01-15T10:30:00.000Z"
+    "user_id": 1,
+    "name": "work",
+    "color": "#3B82F6",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
   }
 }
 ```
 
-#### Error Responses
-
-- `404 Not Found` - Tag not found or belongs to another user
+**Error Response (404 Not Found):**
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Tag with id 123 not found"
+  }
+}
+```
 
 ### Create Tag
 
-Create a new tag.
+Create a new tag for the authenticated user.
 
+**Endpoint:** `POST /api/v1/tags`
+
+**Headers:**
 ```
-POST /api/v1/tags
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
 ```
 
-#### Request Body
-
+**Request Body:**
 ```json
 {
   "tag": {
-    "name": "important",
-    "color": "#F59E0B"
+    "name": "Important",
+    "color": "#EF4444"
   }
 }
 ```
 
-#### Parameters
-
-| Field | Type | Required | Description | Validation |
-|-------|------|----------|-------------|------------|
-| `name` | string | Yes | Tag name | 1-30 characters, trimmed |
-| `color` | string | No | Hex color | Default: `#6B7280`, format: `#RRGGBB` |
-
-#### Response
-
+**Success Response (201 Created):**
 ```json
 {
-  "tag": {
-    "id": 3,
-    "name": "important",
-    "color": "#F59E0B",
-    "created_at": "2024-01-15T10:35:00.000Z",
-    "updated_at": "2024-01-15T10:35:00.000Z"
+  "message": "Tag created successfully",
+  "data": {
+    "tag": {
+      "id": 1,
+      "user_id": 1,
+      "name": "important",
+      "color": "#EF4444",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
   }
 }
 ```
 
-#### Error Responses
+**Note:** Tag names are normalized to lowercase before saving (e.g., "Important" becomes "important").
 
-- `422 Unprocessable Entity` - Validation errors
-
+**Error Response (422 Unprocessable Entity):**
 ```json
 {
-  "errors": {
-    "name": ["has already been taken"],
-    "color": ["is invalid"]
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Validation failed",
+    "details": {
+      "validation_errors": {
+        "name": ["required", "notblank"],
+        "color": ["hexcolor"]
+      }
+    }
   }
 }
 ```
 
-**Notes**:
-- Tag names are normalized (trimmed of whitespace)
-- Color values are normalized to uppercase
-- Names must be unique per user (case-insensitive)
+**Error Response (409 Conflict - Duplicate Name):**
+```json
+{
+  "error": {
+    "code": "DUPLICATE_RESOURCE",
+    "message": "Tag with this name already exists"
+  }
+}
+```
 
 ### Update Tag
 
 Update an existing tag.
 
+**Endpoint:** `PATCH /api/v1/tags/:id`
+
+**Headers:**
 ```
-PATCH /api/v1/tags/:id
-PUT /api/v1/tags/:id
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
 ```
 
-#### Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Tag ID |
-
-#### Request Body
-
+**Request Body:**
 ```json
 {
   "tag": {
-    "name": "high-priority",
+    "name": "High Priority",
     "color": "#DC2626"
   }
 }
 ```
 
-#### Response
+Both fields are optional for partial updates.
 
+**Success Response (200 OK):**
 ```json
 {
   "tag": {
     "id": 1,
-    "name": "high-priority",
+    "user_id": 1,
+    "name": "high priority",
     "color": "#DC2626",
-    "created_at": "2024-01-15T10:30:00.000Z",
-    "updated_at": "2024-01-15T10:40:00.000Z"
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T12:00:00Z"
   }
 }
 ```
 
-#### Error Responses
-
-- `404 Not Found` - Tag not found or belongs to another user
-- `422 Unprocessable Entity` - Validation errors
+**Error Response (404 Not Found):**
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Tag with id 123 not found"
+  }
+}
+```
 
 ### Delete Tag
 
-Delete a tag. This will also remove the tag from all associated todos.
+Delete a tag. This will also remove the tag from all associated todos via the todo_tags join table.
 
+**Endpoint:** `DELETE /api/v1/tags/:id`
+
+**Headers:**
 ```
-DELETE /api/v1/tags/:id
-```
-
-#### Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | integer | Tag ID |
-
-#### Response
-
-```
-204 No Content
+Authorization: Bearer <jwt_token>
 ```
 
-#### Error Responses
-
-- `404 Not Found` - Tag not found or belongs to another user
-
-**Notes**:
-- Deleting a tag removes it from all todos but does not delete the todos themselves
-- This operation cannot be undone
-
-## Tag Search
-
-Search for tags by name (useful for autocomplete).
-
+**Success Response (204 No Content):**
 ```
-GET /api/v1/tags?search=work
+(empty body)
 ```
 
-#### Query Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `search` | string | Search term for tag names |
-
-#### Response
-
-Returns tags where the name contains the search term (case-insensitive).
-
-## Using Tags with Todos
-
-### Adding Tags to Todos
-
-When creating or updating todos, include tag IDs:
-
+**Error Response (404 Not Found):**
 ```json
 {
-  "todo": {
-    "title": "Complete project",
-    "tag_ids": [1, 2, 3]
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Tag with id 123 not found"
   }
 }
 ```
 
-### Filtering Todos by Tag
+## Tag Properties
 
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `id` | Integer | Read-only | Unique identifier |
+| `user_id` | Integer | Read-only | Owner of the tag |
+| `name` | String | Yes | Tag name (unique per user, stored lowercase) |
+| `color` | String | No | Hex color code (default: "#6B7280") |
+| `created_at` | String (RFC3339) | Read-only | Creation timestamp |
+| `updated_at` | String (RFC3339) | Read-only | Last update timestamp |
+
+## Validation Rules
+
+### Name
+- **Required**: Cannot be blank
+- **Not Blank**: Cannot be only whitespace
+- **Uniqueness**: Must be unique per user (case-insensitive)
+- **Length**: Maximum 30 characters
+- **Normalization**: Trimmed and converted to lowercase before saving
+
+### Color
+- **Optional**: Can be omitted (defaults to "#6B7280")
+- **Format**: Must be a valid hex color code if provided (e.g., "#EF4444")
+- **Pattern**: Must match `/^#[0-9a-fA-F]{6}$/`
+
+## Business Rules
+
+1. **User Scoped**: Users can only see and manage their own tags
+2. **Unique Names**: Tag names must be unique within a user's tags (case-insensitive due to lowercase normalization)
+3. **Many-to-Many**: Tags have a many-to-many relationship with todos through the `todo_tags` join table
+4. **Cascade Behavior**: When a tag is deleted, all entries in `todo_tags` referencing it are removed
+5. **Optional Color**: Tags can exist without a color (uses default gray)
+
+## Error Handling
+
+All endpoints return consistent error responses. Common error scenarios:
+
+- **401 Unauthorized**: Missing or invalid JWT token
+- **404 Not Found**: Tag doesn't exist or doesn't belong to the user
+- **409 Conflict**: Duplicate tag name
+- **422 Unprocessable Entity**: Validation errors (invalid color format, blank name)
+
+## Database Schema
+
+### Tags Table
+```sql
+CREATE TABLE tags (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  name VARCHAR(30) NOT NULL,
+  color VARCHAR(7) DEFAULT '#6B7280',
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+  UNIQUE(user_id, name)
+);
 ```
-GET /api/v1/todos?tag_id=1
+
+### Todo_Tags Join Table
+```sql
+CREATE TABLE todo_tags (
+  id BIGSERIAL PRIMARY KEY,
+  todo_id BIGINT NOT NULL REFERENCES todos(id) ON DELETE CASCADE,
+  tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+  UNIQUE(todo_id, tag_id)
+);
 ```
-
-Returns all todos that have the specified tag.
-
-## Best Practices
-
-1. **Limit Tags per User**: Consider implementing a maximum number of tags per user to prevent abuse
-2. **Tag Colors**: Use a consistent color palette for better UX
-3. **Tag Names**: Keep tag names short and descriptive
-4. **Cleanup**: Periodically review and remove unused tags
-
-## Rate Limiting
-
-Tag operations follow the same rate limiting rules as other API endpoints. See the main API documentation for details.
