@@ -13,9 +13,9 @@ http://localhost:3001/api/v1/categories
 
 ## Endpoints
 
-### Get Categories
+### List Categories
 
-Retrieve all categories for the authenticated user.
+Retrieve all categories for the authenticated user, sorted by name.
 
 **Endpoint:** `GET /api/v1/categories`
 
@@ -26,31 +26,33 @@ Authorization: Bearer <jwt_token>
 
 **Success Response (200 OK):**
 ```json
-[
-  {
-    "id": 1,
-    "name": "Work",
-    "color": "#ff4757",
-    "todos_count": 5,
-    "user_id": 1,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  },
-  {
-    "id": 2,
-    "name": "Personal",
-    "color": "#3742fa",
-    "todos_count": 3,
-    "user_id": 1,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  }
-]
+{
+  "categories": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "name": "personal",
+      "color": "#3742fa",
+      "todo_count": 3,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "name": "work",
+      "color": "#ff4757",
+      "todo_count": 5,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
 ```
 
 ### Get Category
 
-Retrieve a specific category.
+Retrieve a specific category by ID.
 
 **Endpoint:** `GET /api/v1/categories/:id`
 
@@ -62,20 +64,25 @@ Authorization: Bearer <jwt_token>
 **Success Response (200 OK):**
 ```json
 {
-  "id": 1,
-  "name": "Work",
-  "color": "#ff4757",
-  "todos_count": 5,
-  "user_id": 1,
-  "created_at": "2024-01-01T00:00:00.000Z",
-  "updated_at": "2024-01-01T00:00:00.000Z"
+  "category": {
+    "id": 1,
+    "user_id": 1,
+    "name": "work",
+    "color": "#ff4757",
+    "todo_count": 5,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
 }
 ```
 
 **Error Response (404 Not Found):**
 ```json
 {
-  "error": "Record not found"
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Category with id 123 not found"
+  }
 }
 ```
 
@@ -106,23 +113,43 @@ Content-Type: application/json
 {
   "message": "Category created successfully",
   "data": {
-    "id": 1,
-    "name": "Work",
-    "color": "#ff4757",
-    "todos_count": 0,
-    "user_id": 1,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
+    "category": {
+      "id": 1,
+      "user_id": 1,
+      "name": "work",
+      "color": "#ff4757",
+      "todo_count": 0,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
   }
 }
 ```
 
+**Note:** Category names are normalized to lowercase before saving (e.g., "Work" becomes "work").
+
 **Error Response (422 Unprocessable Entity):**
 ```json
 {
-  "errors": {
-    "name": ["can't be blank", "has already been taken"],
-    "color": ["can't be blank", "must be a valid hex color"]
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Validation failed",
+    "details": {
+      "validation_errors": {
+        "name": ["required", "notblank"],
+        "color": ["required", "hexcolor"]
+      }
+    }
+  }
+}
+```
+
+**Error Response (409 Conflict - Duplicate Name):**
+```json
+{
+  "error": {
+    "code": "DUPLICATE_RESOURCE",
+    "message": "Category with this name already exists"
   }
 }
 ```
@@ -131,7 +158,7 @@ Content-Type: application/json
 
 Update an existing category.
 
-**Endpoint:** `PUT /api/v1/categories/:id` or `PATCH /api/v1/categories/:id`
+**Endpoint:** `PATCH /api/v1/categories/:id`
 
 **Headers:**
 ```
@@ -149,18 +176,19 @@ Content-Type: application/json
 }
 ```
 
+Both fields are optional for partial updates.
+
 **Success Response (200 OK):**
 ```json
 {
-  "message": "Category updated successfully",
-  "data": {
+  "category": {
     "id": 1,
-    "name": "Personal Projects",
-    "color": "#2ed573",
-    "todos_count": 5,
     "user_id": 1,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T12:00:00.000Z"
+    "name": "personal projects",
+    "color": "#2ed573",
+    "todo_count": 5,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T12:00:00Z"
   }
 }
 ```
@@ -168,16 +196,9 @@ Content-Type: application/json
 **Error Response (404 Not Found):**
 ```json
 {
-  "error": "Record not found"
-}
-```
-
-**Error Response (422 Unprocessable Entity):**
-```json
-{
-  "errors": {
-    "name": ["has already been taken"],
-    "color": ["must be a valid hex color"]
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Category with id 123 not found"
   }
 }
 ```
@@ -193,17 +214,18 @@ Delete a category. All todos assigned to this category will have their category_
 Authorization: Bearer <jwt_token>
 ```
 
-**Success Response (200 OK):**
-```json
-{
-  "message": "Category deleted successfully"
-}
+**Success Response (204 No Content):**
+```
+(empty body)
 ```
 
 **Error Response (404 Not Found):**
 ```json
 {
-  "error": "Record not found"
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Category with id 123 not found"
+  }
 }
 ```
 
@@ -212,19 +234,21 @@ Authorization: Bearer <jwt_token>
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Integer | Read-only | Unique identifier |
-| `name` | String | Yes | Category name (unique per user) |
-| `color` | String | Yes | Hex color code (e.g., "#ff4757") |
-| `todos_count` | Integer | Read-only | Number of todos in this category (counter cache) |
 | `user_id` | Integer | Read-only | Owner of the category |
-| `created_at` | String (ISO 8601) | Read-only | Creation timestamp |
-| `updated_at` | String (ISO 8601) | Read-only | Last update timestamp |
+| `name` | String | Yes | Category name (unique per user, stored lowercase) |
+| `color` | String | Yes | Hex color code (e.g., "#ff4757") |
+| `todo_count` | Integer | Read-only | Number of todos in this category |
+| `created_at` | String (RFC3339) | Read-only | Creation timestamp |
+| `updated_at` | String (RFC3339) | Read-only | Last update timestamp |
 
 ## Validation Rules
 
 ### Name
 - **Required**: Cannot be blank
-- **Uniqueness**: Must be unique per user
+- **Not Blank**: Cannot be only whitespace
+- **Uniqueness**: Must be unique per user (case-insensitive)
 - **Length**: Maximum 50 characters
+- **Normalization**: Trimmed and converted to lowercase before saving
 
 ### Color
 - **Required**: Cannot be blank
@@ -234,99 +258,24 @@ Authorization: Bearer <jwt_token>
 ## Business Rules
 
 1. **User Scoped**: Users can only see and manage their own categories
-2. **Unique Names**: Category names must be unique within a user's categories
-3. **Counter Cache**: `todos_count` is automatically maintained and updated when todos are assigned/unassigned
+2. **Unique Names**: Category names must be unique within a user's categories (case-insensitive due to lowercase normalization)
+3. **Todo Count Sync**: `todo_count` is automatically updated when todos are created, updated, or deleted
 4. **Cascade Behavior**: When a category is deleted, all todos assigned to it have their `category_id` set to `null`
-5. **Default Category**: There is no default "uncategorized" category - todos can exist without a category
-
-## Usage Examples
-
-### Frontend Integration
-
-```javascript
-// Category API Client
-class CategoryApiClient {
-  async getCategories() {
-    const response = await fetch('/api/v1/categories', {
-      headers: { 'Authorization': `Bearer ${this.getToken()}` }
-    });
-    return response.json();
-  }
-  
-  async createCategory(categoryData) {
-    const response = await fetch('/api/v1/categories', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.getToken()}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ category: categoryData })
-    });
-    const data = await response.json();
-    if (response.ok) return data;
-    throw new Error(data.error || 'Failed to create category');
-  }
-  
-  async updateCategory(id, categoryData) {
-    const response = await fetch(`/api/v1/categories/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${this.getToken()}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ category: categoryData })
-    });
-    const data = await response.json();
-    if (response.ok) return data;
-    throw new Error(data.error || 'Failed to update category');
-  }
-  
-  async deleteCategory(id) {
-    const response = await fetch(`/api/v1/categories/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${this.getToken()}` }
-    });
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Failed to delete category');
-    }
-  }
-}
-```
-
-### Color Validation
-
-Categories use hex color codes for visual organization. Common color options:
-
-```javascript
-const CATEGORY_COLORS = [
-  '#ff4757', // Red
-  '#ff6b6b', // Light Red
-  '#ff9f43', // Orange
-  '#feca57', // Yellow
-  '#48dbfb', // Light Blue
-  '#3742fa', // Blue
-  '#2f3542', // Dark
-  '#57606f', // Gray
-  '#2ed573', // Green
-  '#5f27cd', // Purple
-  '#00d2d3', // Cyan
-  '#ff3838'  // Bright Red
-];
-```
+5. **No Default Category**: Todos can exist without a category
 
 ## Error Handling
 
-All endpoints return consistent error responses as documented in the [API Overview](./README.md). Common error scenarios:
+All endpoints return consistent error responses. Common error scenarios:
 
 - **401 Unauthorized**: Missing or invalid JWT token
 - **404 Not Found**: Category doesn't exist or doesn't belong to the user
-- **422 Unprocessable Entity**: Validation errors (duplicate name, invalid color format)
+- **409 Conflict**: Duplicate category name
+- **422 Unprocessable Entity**: Validation errors (invalid color format, blank name)
 
 ## Performance Considerations
 
-1. **Counter Cache**: The `todos_count` field is automatically maintained using Rails counter cache, eliminating N+1 queries when loading categories with todo counts.
+1. **Counter Cache**: The `todo_count` field is maintained through increment/decrement operations when todos change categories.
 
-2. **User Scoping**: All queries are scoped to the authenticated user, ensuring data isolation and optimal query performance.
+2. **User Scoping**: All queries are scoped to the authenticated user, ensuring data isolation.
 
-3. **Indexing**: Database indexes on `user_id` and unique constraint on `(user_id, name)` ensure fast lookups and prevent duplicates.
+3. **Indexing**: Composite unique index on `(user_id, name)` ensures fast lookups and prevents duplicates at the database level.
