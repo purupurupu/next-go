@@ -1,4 +1,3 @@
-import { API_ENDPOINTS } from "@/lib/constants";
 import { httpClient } from "@/lib/api-client";
 import { Note, NoteRevisionsResponse, NotesListResponse } from "../types";
 
@@ -21,7 +20,7 @@ export async function fetchNotes(params: NotesQuery = {}): Promise<NotesListResp
   if (params.per_page) searchParams.set("per_page", String(params.per_page));
 
   const query = searchParams.toString();
-  const endpoint = query ? `${API_ENDPOINTS.NOTES}?${query}` : API_ENDPOINTS.NOTES;
+  const endpoint = query ? `/api/v1/notes?${query}` : "/api/v1/notes";
 
   return httpClient.get<NotesListResponse>(endpoint);
 }
@@ -35,22 +34,22 @@ export interface NotePayload {
 }
 
 export async function createNote(payload: NotePayload = {}): Promise<Note> {
-  return httpClient.post<Note>(API_ENDPOINTS.NOTES, { note: payload });
+  return httpClient.post<Note>("/api/v1/notes", { note: payload });
 }
 
 export async function updateNote(id: number, payload: NotePayload): Promise<Note> {
-  return httpClient.patch<Note>(API_ENDPOINTS.NOTE_BY_ID(id), { note: payload });
+  return httpClient.patch<Note>(`/api/v1/notes/${id}`, { note: payload });
 }
 
 export async function deleteNote(id: number, force = false): Promise<void> {
-  const endpoint = force ? `${API_ENDPOINTS.NOTE_BY_ID(id)}?force=true` : API_ENDPOINTS.NOTE_BY_ID(id);
+  const endpoint = force ? `/api/v1/notes/${id}?force=true` : `/api/v1/notes/${id}`;
   await httpClient.delete<void>(endpoint);
 }
 
 export async function fetchRevisions(noteId: number): Promise<NoteRevisionsResponse> {
-  return httpClient.get<NoteRevisionsResponse>(API_ENDPOINTS.NOTE_REVISIONS(noteId));
+  return httpClient.get<NoteRevisionsResponse>(`/api/v1/notes/${noteId}/revisions`);
 }
 
 export async function restoreRevision(noteId: number, revisionId: number): Promise<Note> {
-  return httpClient.post<Note>(API_ENDPOINTS.NOTE_REVISION_RESTORE(noteId, revisionId));
+  return httpClient.post<Note>(`/api/v1/notes/${noteId}/revisions/${revisionId}/restore`);
 }

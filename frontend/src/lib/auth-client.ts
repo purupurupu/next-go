@@ -1,5 +1,5 @@
 import { httpClient } from "./api-client";
-import { API_BASE_URL, API_ENDPOINTS } from "./constants";
+import { API_BASE_URL } from "./constants";
 import type {
   User,
   LoginRequest,
@@ -58,16 +58,16 @@ class AuthClient {
   }
 
   async login(credentials: LoginRequest): Promise<AuthResult> {
-    return this.authRequest(API_ENDPOINTS.AUTH_LOGIN, credentials);
+    return this.authRequest("/auth/sign_in", credentials);
   }
 
   async register(userData: RegisterRequest): Promise<AuthResult> {
-    return this.authRequest(API_ENDPOINTS.AUTH_REGISTER, userData);
+    return this.authRequest("/auth/sign_up", userData);
   }
 
   async logout(): Promise<void> {
     try {
-      await httpClient.delete(API_ENDPOINTS.AUTH_LOGOUT);
+      await httpClient.delete("/auth/sign_out");
     } finally {
       this.removeAuthToken();
     }
