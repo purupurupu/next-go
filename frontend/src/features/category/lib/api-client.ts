@@ -20,7 +20,7 @@ class CategoryApiClient extends HttpClient {
   }
 
   async updateCategory(id: number, data: UpdateCategoryData): Promise<Category> {
-    return this.put<Category>(API_ENDPOINTS.CATEGORY_BY_ID(id), {
+    return this.patch<Category>(API_ENDPOINTS.CATEGORY_BY_ID(id), {
       category: data,
     });
   }
