@@ -20,6 +20,7 @@ import (
 	authMiddleware "todo-api/internal/middleware"
 	"todo-api/internal/model"
 	"todo-api/internal/repository"
+	"todo-api/internal/service"
 	"todo-api/internal/validator"
 	"todo-api/pkg/database"
 )
@@ -101,9 +102,12 @@ func main() {
 	categoryRepo := repository.NewCategoryRepository(db)
 	tagRepo := repository.NewTagRepository(db)
 
+	// Initialize services
+	todoService := service.NewTodoService(todoRepo, categoryRepo)
+
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, cfg)
-	todoHandler := handler.NewTodoHandler(todoRepo, categoryRepo)
+	todoHandler := handler.NewTodoHandler(todoService, todoRepo)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo)
 	tagHandler := handler.NewTagHandler(tagRepo)
 
