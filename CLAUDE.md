@@ -215,4 +215,3 @@ docker compose up -d
 docker compose exec backend go mod tidy
 docker compose build backend
 ```
-- to memorize
