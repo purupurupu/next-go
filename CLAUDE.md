@@ -66,6 +66,9 @@ docker compose exec backend go test -v ./internal/handler/...
 # Run single test function
 docker compose exec backend go test -v ./internal/handler/... -run TestTodoCreate
 
+# Run tests matching pattern (e.g., all Comment tests)
+docker compose exec backend go test -v ./internal/handler/... -run "TestComment"
+
 # Run with coverage
 docker compose exec backend go test -cover ./...
 docker compose exec backend go test -coverprofile=coverage.out ./...
@@ -77,6 +80,13 @@ docker compose exec backend golangci-lint run
 docker compose exec backend go build -o bin/api cmd/api/main.go
 ```
 
+**Test Utilities** (`internal/testutil/`):
+- `SetupTestFixture(t)` - 全テスト依存関係を初期化
+- `f.CreateUser(email)` - テストユーザー作成（JWT token返却）
+- `f.CreateTodo(userID, title)` - テストTodo作成
+- `f.CreateComment(userID, todoID, content)` - テストコメント作成
+- `f.CallAuth(token, method, path, body, handler)` - 認証付きハンドラ呼び出し
+
 ### Database
 
 Database auto-migrates on startup in development mode via GORM AutoMigrate.
@@ -85,19 +95,21 @@ Database auto-migrates on startup in development mode via GORM AutoMigrate.
 
 ```
 backend/
-├── cmd/api/main.go           # Entry point, server setup
+├── cmd/api/main.go           # Entry point, DI, routing
 ├── internal/
 │   ├── config/               # Environment config (envconfig)
 │   ├── handler/              # HTTP handlers (Echo)
 │   ├── middleware/           # JWT auth middleware
 │   ├── model/                # GORM models
-│   ├── repository/           # Data access layer
-│   ├── service/              # Business logic
+│   ├── repository/           # Data access layer (interfaces.go にインターフェース定義)
+│   ├── service/              # Business logic (TodoService: 履歴記録含む)
+│   ├── testutil/             # テストヘルパー (fixture, helpers)
 │   ├── validator/            # Request validation (go-playground/validator)
-│   └── errors/               # API error handling
+│   └── errors/               # API error handling (EditTimeExpired など)
 └── pkg/
     ├── database/             # DB connection
-    └── response/             # Standardized API responses
+    ├── response/             # Standardized API responses
+    └── util/                 # Time formatting utilities
 ```
 
 **Key Dependencies**:
@@ -115,7 +127,8 @@ backend/
 - Tags CRUD - Complete
 - TodoService (business logic layer) - Complete
 - Todo Search/Filter (GET /api/v1/todos/search) - Complete
-- Comments, Histories - Planned
+- Comments (15分編集制限、ソフトデリート) - Complete
+- TodoHistory (自動履歴記録、日本語メッセージ) - Complete
 
 ## Frontend Architecture
 
@@ -158,8 +171,8 @@ frontend/src/
 - `/api/v1/todos/search` - Todo search with filters/sort/pagination
 - `/api/v1/categories` - Category CRUD
 - `/api/v1/tags` - Tag CRUD
-- `/api/v1/todos/:id/comments` - Comments (planned)
-- `/api/v1/todos/:id/histories` - Audit trail (planned)
+- `/api/v1/todos/:todo_id/comments` - Comments (CRUD、15分編集制限)
+- `/api/v1/todos/:todo_id/histories` - Audit trail (読み取り専用、ページネーション)
 
 ## Environment Variables
 
