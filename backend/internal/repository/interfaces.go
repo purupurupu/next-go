@@ -22,7 +22,6 @@ type TodoRepositoryInterface interface {
 	FindByIDWithRelations(id, userID int64) (*model.Todo, error)
 	Create(todo *model.Todo) error
 	Update(todo *model.Todo) error
-	UpdateFields(id, userID int64, updates map[string]any) error
 	Delete(id, userID int64) error
 	UpdateOrder(userID int64, updates []OrderUpdate) error
 	Count(userID int64) (int64, error)
