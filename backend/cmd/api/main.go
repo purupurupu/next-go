@@ -57,6 +57,8 @@ func main() {
 			&model.Tag{},
 			&model.Todo{},
 			&model.TodoTag{},
+			&model.Comment{},
+			&model.TodoHistory{},
 		); err != nil {
 			log.Fatal().Err(err).Msg("Failed to auto migrate models")
 		}
@@ -101,15 +103,19 @@ func main() {
 	todoRepo := repository.NewTodoRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	tagRepo := repository.NewTagRepository(db)
+	commentRepo := repository.NewCommentRepository(db)
+	historyRepo := repository.NewTodoHistoryRepository(db)
 
 	// Initialize services
-	todoService := service.NewTodoService(todoRepo, categoryRepo)
+	todoService := service.NewTodoService(todoRepo, categoryRepo, historyRepo)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, cfg)
 	todoHandler := handler.NewTodoHandler(todoService, todoRepo)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo)
 	tagHandler := handler.NewTagHandler(tagRepo)
+	commentHandler := handler.NewCommentHandler(commentRepo, todoRepo)
+	historyHandler := handler.NewTodoHistoryHandler(historyRepo, todoRepo)
 
 	// Auth routes (public)
 	auth := e.Group("/auth")
@@ -142,6 +148,15 @@ func main() {
 	api.GET("/tags/:id", tagHandler.Show)
 	api.PATCH("/tags/:id", tagHandler.Update)
 	api.DELETE("/tags/:id", tagHandler.Delete)
+
+	// Comment routes (nested under todos)
+	api.GET("/todos/:todo_id/comments", commentHandler.List)
+	api.POST("/todos/:todo_id/comments", commentHandler.Create)
+	api.PATCH("/todos/:todo_id/comments/:id", commentHandler.Update)
+	api.DELETE("/todos/:todo_id/comments/:id", commentHandler.Delete)
+
+	// History routes (nested under todos)
+	api.GET("/todos/:todo_id/histories", historyHandler.List)
 
 	// Log startup information
 	log.Info().
