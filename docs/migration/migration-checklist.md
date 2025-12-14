@@ -235,49 +235,57 @@
 
 ---
 
-## Phase 4: Todo検索・フィルタリング（高優先）
+## Phase 4: Todo検索・フィルタリング（高優先） ✅ 完了
 
 ### Service
-- [ ] `internal/service/todo_search.go`
-  - [ ] フィルター条件
-    - [ ] q: タイトル・説明のILIKE検索
-    - [ ] status: ステータスフィルター
-    - [ ] priority: 優先度フィルター
-    - [ ] category_id: カテゴリフィルター
-    - [ ] tag_ids: タグフィルター
-    - [ ] tag_mode: "all" または "any"
-    - [ ] due_date_from / due_date_to: 日付範囲
-  - [ ] ソート
-    - [ ] sort_by: due_date, created_at, updated_at, priority, position, title
-    - [ ] sort_order: asc, desc
-  - [ ] ページネーション
-    - [ ] page
-    - [ ] per_page（最大100）
+- [x] `internal/service/todo.go` に検索機能追加
+  - [x] フィルター条件
+    - [x] q: タイトル・説明のILIKE検索
+    - [x] status: ステータスフィルター（複数対応）
+    - [x] priority: 優先度フィルター
+    - [x] category_id: カテゴリフィルター（-1でカテゴリなし）
+    - [x] tag_ids: タグフィルター
+    - [x] tag_mode: "all" または "any"
+    - [x] due_date_from / due_date_to: 日付範囲
+  - [x] ソート
+    - [x] sort_by: due_date, created_at, updated_at, priority, position, title, status
+    - [x] sort_order: asc, desc
+    - [x] due_dateソートでNULLを最後に配置
+  - [x] ページネーション
+    - [x] page（デフォルト: 1）
+    - [x] per_page（デフォルト: 20、最大100）
 
 ### Handler
-- [ ] `GET /api/v1/todos/search`
-  - [ ] クエリパラメータ解析
-  - [ ] 検索実行
-  - [ ] ページネーションメタデータ付きレスポンス
+- [x] `GET /api/v1/todos/search`
+  - [x] クエリパラメータ解析（配列形式とカンマ区切り両対応）
+  - [x] 検索実行
+  - [x] ページネーションメタデータ付きレスポンス
+  - [x] 空結果時のサジェスション機能
 
 ### レスポンス形式
 ```json
 {
-  "todos": [...],
+  "data": [...],
   "meta": {
     "total": 100,
     "current_page": 1,
     "total_pages": 5,
-    "per_page": 20
-  }
+    "per_page": 20,
+    "filters_applied": {}
+  },
+  "suggestions": []
 }
 ```
 
 ### テスト
-- [ ] 各フィルター条件テスト
-- [ ] ソートテスト
-- [ ] ページネーションテスト
-- [ ] 複合条件テスト
+- [x] 基本検索テスト
+- [x] テキスト検索テスト
+- [x] 各フィルター条件テスト（status, priority, category, tags, date range）
+- [x] タグAND/OR検索テスト
+- [x] ソートテスト（due_date NULL最後含む）
+- [x] ページネーションテスト
+- [x] 複合条件テスト
+- [x] ユーザースコープテスト
 
 ### フロントエンド統合確認
 - [ ] 検索ボックス動作
