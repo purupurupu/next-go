@@ -114,7 +114,8 @@ backend/
 - Categories CRUD (with todo_count counter cache) - Complete
 - Tags CRUD - Complete
 - TodoService (business logic layer) - Complete
-- Comments, Histories, Search - Planned
+- Todo Search/Filter (GET /api/v1/todos/search) - Complete
+- Comments, Histories - Planned
 
 ## Frontend Architecture
 
@@ -153,11 +154,12 @@ frontend/src/
 - `DELETE /auth/sign_out` - Logout (requires auth)
 
 **API v1** (requires Bearer token):
-- `/api/v1/todos` - Todo CRUD + search
+- `/api/v1/todos` - Todo CRUD
+- `/api/v1/todos/search` - Todo search with filters/sort/pagination
 - `/api/v1/categories` - Category CRUD
 - `/api/v1/tags` - Tag CRUD
-- `/api/v1/todos/:id/comments` - Comments
-- `/api/v1/todos/:id/histories` - Audit trail
+- `/api/v1/todos/:id/comments` - Comments (planned)
+- `/api/v1/todos/:id/histories` - Audit trail (planned)
 
 ## Environment Variables
 
