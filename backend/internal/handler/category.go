@@ -152,7 +152,6 @@ func (h *CategoryHandler) Create(c echo.Context) error {
 }
 
 // Update updates an existing category
-// PUT /api/v1/categories/:id
 // PATCH /api/v1/categories/:id
 func (h *CategoryHandler) Update(c echo.Context) error {
 	currentUser, err := GetCurrentUserOrFail(c)
