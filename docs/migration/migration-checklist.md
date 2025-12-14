@@ -295,59 +295,66 @@
 
 ---
 
-## Phase 5: Comment・TodoHistory（中優先）
+## Phase 5: Comment・TodoHistory（中優先） ✅ 完了
 
 ### Comment
 
 #### モデル
-- [ ] `internal/model/comment.go`
-  - [ ] Comment構造体
-  - [ ] ポリモーフィック関連（commentable_type, commentable_id）
-  - [ ] deleted_at（ソフトデリート）
+- [x] `internal/model/comment.go`
+  - [x] Comment構造体
+  - [x] ポリモーフィック関連（commentable_type, commentable_id）
+  - [x] deleted_at（ソフトデリート）
+  - [x] `IsEditable()` - 15分以内かつ未削除か判定
+  - [x] `IsOwnedBy(userID)` - 所有者確認
 
 #### Repository
-- [ ] `internal/repository/comment.go`
-  - [ ] 一覧取得（deleted_at IS NULL）
-  - [ ] 作成
-  - [ ] 更新（15分以内チェック）
-  - [ ] ソフトデリート
+- [x] `internal/repository/comment.go`
+  - [x] 一覧取得（deleted_at IS NULL）
+  - [x] 作成
+  - [x] 更新（15分以内チェック）
+  - [x] ソフトデリート
+  - [x] `ExistsByID()` - 存在確認
 
 #### Handler
-- [ ] `internal/handler/comment.go`
-  - [ ] `GET /api/v1/todos/:todo_id/comments` - 一覧
-  - [ ] `POST /api/v1/todos/:todo_id/comments` - 作成
-  - [ ] `PATCH /api/v1/todos/:todo_id/comments/:id` - 更新
-  - [ ] `DELETE /api/v1/todos/:todo_id/comments/:id` - 削除
+- [x] `internal/handler/comment.go`
+  - [x] `GET /api/v1/todos/:todo_id/comments` - 一覧
+  - [x] `POST /api/v1/todos/:todo_id/comments` - 作成
+  - [x] `PATCH /api/v1/todos/:todo_id/comments/:id` - 更新
+  - [x] `DELETE /api/v1/todos/:todo_id/comments/:id` - 削除
+  - [x] レスポンスに `editable` フィールドを含める
 
 #### ビジネスルール
-- [ ] 作成者のみ編集・削除可能
-- [ ] 作成から15分以内のみ編集可能
-- [ ] 削除は論理削除（deleted_at設定）
-- [ ] content: 必須、1000文字以下
+- [x] 作成者のみ編集・削除可能
+- [x] 作成から15分以内のみ編集可能
+- [x] 削除は論理削除（deleted_at設定）
+- [x] content: 必須、1000文字以下
 
 ### TodoHistory
 
 #### モデル
-- [ ] `internal/model/todo_history.go`
-  - [ ] TodoHistory構造体
-  - [ ] action enum (created, updated, deleted, status_changed, priority_changed)
-  - [ ] changes JSONB
+- [x] `internal/model/todo_history.go`
+  - [x] TodoHistory構造体
+  - [x] action enum (created, updated, deleted, status_changed, priority_changed)
+  - [x] changes JSONB
 
 #### 自動記録
-- [ ] Todo作成時 → action: "created"
-- [ ] Todo更新時 → action: "updated" + 変更内容
-- [ ] Todo削除時 → action: "deleted"
-- [ ] ステータス変更時 → action: "status_changed"
-- [ ] 優先度変更時 → action: "priority_changed"
+- [x] Todo作成時 → action: "created"
+- [x] Todo更新時 → action: "updated" + 変更内容
+- [x] Todo削除時 → action: "deleted"
+- [x] ステータス変更時 → action: "status_changed"
+- [x] 優先度変更時 → action: "priority_changed"
 
 #### Handler
-- [ ] `GET /api/v1/todos/:todo_id/histories` - 履歴一覧
+- [x] `GET /api/v1/todos/:todo_id/histories` - 履歴一覧
+- [x] ページネーション対応
+- [x] `human_readable_change` 日本語メッセージ生成
 
 ### テスト
-- [ ] Comment CRUD テスト
-- [ ] 15分編集制限テスト
-- [ ] ソフトデリートテスト
-- [ ] 履歴自動記録テスト
+- [x] Comment CRUD テスト（22テストケース）
+- [x] 15分編集制限テスト
+- [x] ソフトデリートテスト
+- [x] 履歴自動記録テスト（10テストケース）
+- [x] ユーザースコープテスト
 
 ### フロントエンド統合確認
 - [ ] コメント表示・投稿
