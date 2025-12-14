@@ -163,70 +163,70 @@
 
 ---
 
-## Phase 3: Category・Tag CRUD（高優先）
+## Phase 3: Category・Tag CRUD（高優先） ✅ 完了
 
 ### Category
 
 #### モデル
-- [ ] `internal/model/category.go`
-  - [ ] Category構造体
-  - [ ] todos_count カウンターキャッシュ
-  - [ ] User リレーション
+- [x] `internal/model/category.go`
+  - [x] Category構造体
+  - [x] todos_count カウンターキャッシュ
+  - [x] User リレーション
 
 #### Repository
-- [ ] `internal/repository/category.go`
-  - [ ] CRUD操作
-  - [ ] カウンターキャッシュ更新ロジック
+- [x] `internal/repository/category.go`
+  - [x] CRUD操作
+  - [x] カウンターキャッシュ更新ロジック
 
 #### Handler
-- [ ] `internal/handler/category.go`
-  - [ ] `GET /api/v1/categories` - 一覧
-  - [ ] `POST /api/v1/categories` - 作成
-  - [ ] `GET /api/v1/categories/:id` - 詳細
-  - [ ] `PATCH /api/v1/categories/:id` - 更新
-  - [ ] `DELETE /api/v1/categories/:id` - 削除
+- [x] `internal/handler/category.go`
+  - [x] `GET /api/v1/categories` - 一覧
+  - [x] `POST /api/v1/categories` - 作成
+  - [x] `GET /api/v1/categories/:id` - 詳細
+  - [x] `PATCH /api/v1/categories/:id` - 更新
+  - [x] `DELETE /api/v1/categories/:id` - 削除
 
 #### バリデーション
-- [ ] name: 必須、50文字以下、ユーザー内ユニーク
-- [ ] color: 必須、HEX形式（#RRGGBB）
+- [x] name: 必須、50文字以下、ユーザー内ユニーク
+- [x] color: 必須、HEX形式（#RRGGBB）
 
 ### Tag
 
 #### モデル
-- [ ] `internal/model/tag.go`
-  - [ ] Tag構造体
-  - [ ] User リレーション
-- [ ] `internal/model/todo_tag.go`
-  - [ ] TodoTag中間テーブル
+- [x] `internal/model/tag.go`
+  - [x] Tag構造体
+  - [x] User リレーション
+- [x] `internal/model/todo_tag.go`
+  - [x] TodoTag中間テーブル
 
 #### Repository
-- [ ] `internal/repository/tag.go`
-  - [ ] CRUD操作
-  - [ ] Todo紐付け操作
+- [x] `internal/repository/tag.go`
+  - [x] CRUD操作
+  - [x] Todo紐付け操作
 
 #### Handler
-- [ ] `internal/handler/tag.go`
-  - [ ] `GET /api/v1/tags` - 一覧
-  - [ ] `POST /api/v1/tags` - 作成
-  - [ ] `GET /api/v1/tags/:id` - 詳細
-  - [ ] `PATCH /api/v1/tags/:id` - 更新
-  - [ ] `DELETE /api/v1/tags/:id` - 削除
+- [x] `internal/handler/tag.go`
+  - [x] `GET /api/v1/tags` - 一覧
+  - [x] `POST /api/v1/tags` - 作成
+  - [x] `GET /api/v1/tags/:id` - 詳細
+  - [x] `PATCH /api/v1/tags/:id` - 更新
+  - [x] `DELETE /api/v1/tags/:id` - 削除
 
 #### バリデーション
-- [ ] name: 必須、30文字以下、ユーザー内ユニーク、正規化（小文字+trim）
-- [ ] color: 必須、HEX形式
+- [x] name: 必須、30文字以下、ユーザー内ユニーク、正規化（小文字+trim）
+- [x] color: 必須、HEX形式
 
 ### Todo-Category/Tag連携
-- [ ] `PATCH /api/v1/todos/:id/tags` - タグ更新
-- [ ] Todo作成・更新時のcategory_id設定
-- [ ] Todo作成・更新時のtag_ids設定
-- [ ] 他ユーザーのCategory/Tag使用禁止
+- [x] Todo作成・更新時のcategory_id設定
+- [x] Todo作成・更新時のtag_ids設定
+- [x] 他ユーザーのCategory/Tag使用禁止
+- [ ] `PATCH /api/v1/todos/:id/tags` - タグ更新（未実装）
 
 ### テスト
-- [ ] Category CRUD テスト
-- [ ] Tag CRUD テスト
-- [ ] カウンターキャッシュテスト
-- [ ] ユニーク制約テスト
+- [x] Category CRUD テスト
+- [x] Tag CRUD テスト
+- [x] カウンターキャッシュテスト
+- [x] ユニーク制約テスト
 
 ### フロントエンド統合確認
 - [ ] カテゴリ管理画面
