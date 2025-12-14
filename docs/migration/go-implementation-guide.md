@@ -61,7 +61,8 @@ internal/
 │   ├── todo.go              # Todo CRUD
 │   ├── category.go          # Category CRUD
 │   ├── tag.go               # Tag CRUD
-│   ├── comment.go           # Comment CRUD
+│   ├── comment.go           # Comment CRUD (Phase 5)
+│   ├── todo_history.go      # TodoHistory 一覧 (Phase 5)
 │   └── note.go              # Note CRUD
 ├── middleware/
 │   ├── auth.go              # JWT認証ミドルウェア
@@ -83,7 +84,8 @@ internal/
 │   ├── todo.go
 │   ├── category.go
 │   ├── tag.go
-│   ├── comment.go
+│   ├── comment.go           # Phase 5
+│   ├── todo_history.go      # Phase 5
 │   └── note.go
 ├── service/
 │   ├── auth.go
@@ -188,6 +190,9 @@ func main() {
     api.POST("/todos/:todo_id/comments", commentHandler.Create)
     api.PATCH("/todos/:todo_id/comments/:id", commentHandler.Update)
     api.DELETE("/todos/:todo_id/comments/:id", commentHandler.Delete)
+
+    // History
+    api.GET("/todos/:todo_id/histories", historyHandler.List)
 
     // Categories
     api.GET("/categories", categoryHandler.List)
@@ -807,6 +812,278 @@ var hexColorRegex = regexp.MustCompile(`^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$`)
 
 func validateHexColor(fl validator.FieldLevel) bool {
     return hexColorRegex.MatchString(fl.Field().String())
+}
+```
+
+### internal/model/comment.go (Phase 5)
+
+```go
+package model
+
+import (
+    "time"
+
+    "gorm.io/gorm"
+)
+
+type CommentableType string
+
+const (
+    CommentableTypeTodo CommentableType = "Todo"
+)
+
+type Comment struct {
+    ID              int64           `gorm:"primaryKey" json:"id"`
+    Content         string          `gorm:"type:text;not null" json:"content"`
+    UserID          int64           `gorm:"not null;index" json:"user_id"`
+    CommentableType CommentableType `gorm:"not null;size:50;index:idx_commentable" json:"commentable_type"`
+    CommentableID   int64           `gorm:"not null;index:idx_commentable" json:"commentable_id"`
+    DeletedAt       gorm.DeletedAt  `gorm:"index" json:"-"`
+    CreatedAt       time.Time       `json:"created_at"`
+    UpdatedAt       time.Time       `json:"updated_at"`
+
+    User *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+}
+
+const EditableMinutes = 15
+
+// IsEditable: 15分以内かつ未削除なら編集可能
+func (c *Comment) IsEditable() bool {
+    if !c.DeletedAt.Time.IsZero() {
+        return false
+    }
+    return time.Since(c.CreatedAt) < EditableMinutes*time.Minute
+}
+
+// IsOwnedBy: 所有者確認
+func (c *Comment) IsOwnedBy(userID int64) bool {
+    return c.UserID == userID
+}
+```
+
+### internal/model/todo_history.go (Phase 5)
+
+```go
+package model
+
+import (
+    "encoding/json"
+    "time"
+)
+
+type HistoryAction string
+
+const (
+    ActionCreated         HistoryAction = "created"
+    ActionUpdated         HistoryAction = "updated"
+    ActionDeleted         HistoryAction = "deleted"
+    ActionStatusChanged   HistoryAction = "status_changed"
+    ActionPriorityChanged HistoryAction = "priority_changed"
+)
+
+type TodoHistory struct {
+    ID        int64           `gorm:"primaryKey" json:"id"`
+    TodoID    int64           `gorm:"not null;index" json:"todo_id"`
+    UserID    int64           `gorm:"not null;index" json:"user_id"`
+    Action    HistoryAction   `gorm:"type:varchar(50);not null;index" json:"action"`
+    Changes   json.RawMessage `gorm:"type:jsonb" json:"changes"`
+    CreatedAt time.Time       `json:"created_at"`
+
+    User *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+}
+
+func (TodoHistory) TableName() string {
+    return "todo_histories"
+}
+```
+
+### internal/service/todo.go - 履歴記録ロジック (Phase 5)
+
+```go
+// TodoService に historyRepo を追加
+type TodoService struct {
+    todoRepo     repository.TodoRepositoryInterface
+    categoryRepo repository.CategoryRepositoryInterface
+    historyRepo  repository.TodoHistoryRepositoryInterface
+}
+
+// detectChanges: 変更検出とアクションタイプ決定
+func (s *TodoService) detectChanges(old, new *model.Todo) (model.HistoryAction, map[string]interface{}) {
+    changes := make(map[string]interface{})
+
+    // 各フィールドの比較
+    if old.Title != new.Title {
+        changes["title"] = []string{old.Title, new.Title}
+    }
+    if old.Status != new.Status {
+        changes["status"] = []int{int(old.Status), int(new.Status)}
+    }
+    if old.Priority != new.Priority {
+        changes["priority"] = []int{int(old.Priority), int(new.Priority)}
+    }
+    // ... 他のフィールド
+
+    // アクションタイプ決定
+    if len(changes) == 1 {
+        if _, ok := changes["status"]; ok {
+            return model.ActionStatusChanged, changes
+        }
+        if _, ok := changes["priority"]; ok {
+            return model.ActionPriorityChanged, changes
+        }
+    }
+
+    return model.ActionUpdated, changes
+}
+
+// recordUpdatedHistory: 更新時の履歴記録
+func (s *TodoService) recordUpdatedHistory(userID int64, old, new *model.Todo) {
+    action, changes := s.detectChanges(old, new)
+
+    if len(changes) == 0 {
+        return // 変更なしなら履歴を記録しない
+    }
+
+    changesJSON, _ := json.Marshal(changes)
+    history := &model.TodoHistory{
+        TodoID:  new.ID,
+        UserID:  userID,
+        Action:  action,
+        Changes: changesJSON,
+    }
+    s.historyRepo.Create(history)
+}
+```
+
+### internal/handler/comment.go (Phase 5)
+
+```go
+package handler
+
+import (
+    "net/http"
+
+    "github.com/labstack/echo/v4"
+
+    "todo-api/internal/errors"
+    "todo-api/internal/model"
+    "todo-api/internal/repository"
+    "todo-api/pkg/response"
+)
+
+type CommentHandler struct {
+    commentRepo repository.CommentRepositoryInterface
+    todoRepo    repository.TodoRepositoryInterface
+}
+
+type CommentRequest struct {
+    Comment struct {
+        Content string `json:"content" validate:"required,min=1,max=1000"`
+    } `json:"comment"`
+}
+
+// Update: 15分以内のみ編集可能
+func (h *CommentHandler) Update(c echo.Context) error {
+    currentUser := GetCurrentUserOrFail(c)
+    todoID, _ := ParseIDParam(c, "todo_id")
+    commentID, _ := ParseIDParam(c, "id")
+
+    // Todoの所有権確認
+    if _, err := h.todoRepo.FindByID(todoID, currentUser.ID); err != nil {
+        return errors.NotFound("Todo", todoID)
+    }
+
+    comment, err := h.commentRepo.FindByID(commentID)
+    if err != nil {
+        return errors.NotFound("Comment", commentID)
+    }
+
+    // 所有権チェック
+    if !comment.IsOwnedBy(currentUser.ID) {
+        return errors.AuthorizationFailed("Comment", "update")
+    }
+
+    // 15分制限チェック
+    if !comment.IsEditable() {
+        return errors.EditTimeExpired()
+    }
+
+    var req CommentRequest
+    if err := BindAndValidate(c, &req); err != nil {
+        return err
+    }
+
+    comment.Content = req.Comment.Content
+    if err := h.commentRepo.Update(comment); err != nil {
+        return errors.InternalError()
+    }
+
+    return response.Success(c, buildCommentResponse(comment, currentUser.ID))
+}
+```
+
+### internal/handler/todo_history.go (Phase 5)
+
+```go
+package handler
+
+import (
+    "encoding/json"
+    "fmt"
+
+    "github.com/labstack/echo/v4"
+
+    "todo-api/internal/errors"
+    "todo-api/internal/model"
+    "todo-api/internal/repository"
+)
+
+type TodoHistoryHandler struct {
+    historyRepo repository.TodoHistoryRepositoryInterface
+    todoRepo    repository.TodoRepositoryInterface
+}
+
+// generateHumanReadableChange: 日本語メッセージ生成
+func generateHumanReadableChange(action model.HistoryAction, changes json.RawMessage) string {
+    switch action {
+    case model.ActionCreated:
+        return "Todoが作成されました"
+    case model.ActionDeleted:
+        return "Todoが削除されました"
+    case model.ActionStatusChanged:
+        var ch map[string][]int
+        json.Unmarshal(changes, &ch)
+        if statuses, ok := ch["status"]; ok && len(statuses) == 2 {
+            return fmt.Sprintf("ステータスが「%s」から「%s」に変更されました",
+                translateStatus(statuses[0]), translateStatus(statuses[1]))
+        }
+    case model.ActionPriorityChanged:
+        var ch map[string][]int
+        json.Unmarshal(changes, &ch)
+        if priorities, ok := ch["priority"]; ok && len(priorities) == 2 {
+            return fmt.Sprintf("優先度が「%s」から「%s」に変更されました",
+                translatePriority(priorities[0]), translatePriority(priorities[1]))
+        }
+    }
+    return "Todoが更新されました"
+}
+
+func translateStatus(status int) string {
+    switch status {
+    case 0: return "未着手"
+    case 1: return "進行中"
+    case 2: return "完了"
+    default: return "不明"
+    }
+}
+
+func translatePriority(priority int) string {
+    switch priority {
+    case 0: return "低"
+    case 1: return "中"
+    case 2: return "高"
+    default: return "不明"
+    }
 }
 ```
 

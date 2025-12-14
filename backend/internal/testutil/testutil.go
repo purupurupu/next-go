@@ -49,6 +49,8 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 		&model.Tag{},
 		&model.Todo{},
 		&model.TodoTag{},
+		&model.Comment{},
+		&model.TodoHistory{},
 	)
 	require.NoError(t, err)
 
@@ -58,6 +60,8 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 // CleanupTestDB cleans up test data
 func CleanupTestDB(db *gorm.DB) {
 	// Delete in order respecting foreign key constraints
+	db.Exec("DELETE FROM comments")
+	db.Exec("DELETE FROM todo_histories")
 	db.Exec("DELETE FROM todo_tags")
 	db.Exec("DELETE FROM todos")
 	db.Exec("DELETE FROM tags")
