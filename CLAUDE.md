@@ -113,7 +113,8 @@ backend/
 - Todo CRUD (with position ordering) - Complete
 - Categories CRUD (with todo_count counter cache) - Complete
 - Tags CRUD - Complete
-- Comments, Histories - Planned
+- TodoService (business logic layer) - Complete
+- Comments, Histories, Search - Planned
 
 ## Frontend Architecture
 
@@ -131,15 +132,16 @@ frontend/src/
 │   └── notes/           # Notes feature
 ├── hooks/                # Shared hooks
 ├── lib/                  # API clients, utilities
-│   ├── api-client.ts    # Base HTTP client
+│   ├── api-client.ts    # HttpClient + ApiClient（/api/v1プレフィックス付き）
 │   ├── auth-client.ts   # Auth API client
-│   └── constants.ts     # API endpoints
+│   └── constants.ts     # API base URL
 └── types/                # Shared type definitions
 ```
 
 **Key Patterns**:
 - Feature-based organization: `features/[domain]/` contains domain-specific code
-- API Client pattern: Base `HttpClient` extended by feature clients
+- API Client pattern: `ApiClient`（/api/v1プレフィックス付き）を各featureで継承
+- Auth API: `httpClient`を使用（/api/v1プレフィックスなし）
 - TypeScript path aliases: `@/*` maps to `src/`
 - Optimistic updates with rollback on failure
 
