@@ -29,10 +29,14 @@ type TestFixture struct {
 	TodoRepo        *repository.TodoRepository
 	CategoryRepo    *repository.CategoryRepository
 	TagRepo         *repository.TagRepository
+	CommentRepo     *repository.CommentRepository
+	HistoryRepo     *repository.TodoHistoryRepository
 	AuthHandler     *handler.AuthHandler
 	TodoHandler     *handler.TodoHandler
 	CategoryHandler *handler.CategoryHandler
 	TagHandler      *handler.TagHandler
+	CommentHandler  *handler.CommentHandler
+	HistoryHandler  *handler.TodoHistoryHandler
 }
 
 // SetupTestFixture creates a new TestFixture with all dependencies initialized
@@ -45,15 +49,19 @@ func SetupTestFixture(t *testing.T) *TestFixture {
 	todoRepo := repository.NewTodoRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	tagRepo := repository.NewTagRepository(db)
+	commentRepo := repository.NewCommentRepository(db)
+	historyRepo := repository.NewTodoHistoryRepository(db)
 
 	// Initialize services
-	todoService := service.NewTodoService(todoRepo, categoryRepo)
+	todoService := service.NewTodoService(todoRepo, categoryRepo, historyRepo)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, TestConfig)
 	todoHandler := handler.NewTodoHandler(todoService, todoRepo)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo)
 	tagHandler := handler.NewTagHandler(tagRepo)
+	commentHandler := handler.NewCommentHandler(commentRepo, todoRepo)
+	historyHandler := handler.NewTodoHistoryHandler(historyRepo, todoRepo)
 
 	t.Cleanup(func() {
 		CleanupTestDB(db)
@@ -68,10 +76,14 @@ func SetupTestFixture(t *testing.T) *TestFixture {
 		TodoRepo:        todoRepo,
 		CategoryRepo:    categoryRepo,
 		TagRepo:         tagRepo,
+		CommentRepo:     commentRepo,
+		HistoryRepo:     historyRepo,
 		AuthHandler:     authHandler,
 		TodoHandler:     todoHandler,
 		CategoryHandler: categoryHandler,
 		TagHandler:      tagHandler,
+		CommentHandler:  commentHandler,
+		HistoryHandler:  historyHandler,
 	}
 }
 
@@ -118,7 +130,7 @@ func (f *TestFixture) CreateTodoWithPosition(userID int64, title string, positio
 }
 
 // CallAuthGeneric calls a handler with JWT authentication middleware
-// This is the unified method for all resource types (todos, categories, tags)
+// This is the unified method for all resource types (todos, categories, tags, comments, histories)
 func (f *TestFixture) CallAuthGeneric(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
 	var req *http.Request
 	if body != "" {
@@ -132,21 +144,60 @@ func (f *TestFixture) CallAuthGeneric(token, method, path, body string, handlerF
 	rec := httptest.NewRecorder()
 	c := f.Echo.NewContext(req, rec)
 
-	// Extract path params for any resource type
-	// Pattern: /api/v1/{resource}/{id} or /{resource}/{id}
-	resources := []string{"todos", "categories", "tags"}
-	for _, resource := range resources {
-		pattern := "/" + resource + "/"
-		if strings.Contains(path, pattern) {
-			// Skip special endpoints like /todos/update_order
-			if resource == "todos" && strings.HasSuffix(path, "/update_order") {
-				continue
+	// Extract path params for nested routes
+	// Pattern: /api/v1/todos/:todo_id/comments/:id or /api/v1/todos/:todo_id/histories
+	if strings.Contains(path, "/todos/") && (strings.Contains(path, "/comments") || strings.Contains(path, "/histories")) {
+		// Extract todo_id
+		parts := strings.Split(path, "/todos/")
+		if len(parts) > 1 {
+			subPath := parts[1]
+			var todoID string
+			var resourceID string
+
+			if strings.Contains(subPath, "/comments") {
+				// Split by /comments
+				commentParts := strings.Split(subPath, "/comments")
+				todoID = commentParts[0]
+				if len(commentParts) > 1 && commentParts[1] != "" {
+					// /api/v1/todos/{todo_id}/comments/{id}
+					resourceID = strings.TrimPrefix(commentParts[1], "/")
+					if resourceID != "" {
+						c.SetParamNames("todo_id", "id")
+						c.SetParamValues(todoID, resourceID)
+					} else {
+						c.SetParamNames("todo_id")
+						c.SetParamValues(todoID)
+					}
+				} else {
+					// /api/v1/todos/{todo_id}/comments
+					c.SetParamNames("todo_id")
+					c.SetParamValues(todoID)
+				}
+			} else if strings.Contains(subPath, "/histories") {
+				// /api/v1/todos/{todo_id}/histories
+				historyParts := strings.Split(subPath, "/histories")
+				todoID = historyParts[0]
+				c.SetParamNames("todo_id")
+				c.SetParamValues(todoID)
 			}
-			parts := strings.Split(path, pattern)
-			if len(parts) > 1 && parts[1] != "" {
-				c.SetParamNames("id")
-				c.SetParamValues(parts[1])
-				break
+		}
+	} else {
+		// Extract path params for any resource type
+		// Pattern: /api/v1/{resource}/{id} or /{resource}/{id}
+		resources := []string{"todos", "categories", "tags"}
+		for _, resource := range resources {
+			pattern := "/" + resource + "/"
+			if strings.Contains(path, pattern) {
+				// Skip special endpoints like /todos/update_order
+				if resource == "todos" && strings.HasSuffix(path, "/update_order") {
+					continue
+				}
+				parts := strings.Split(path, pattern)
+				if len(parts) > 1 && parts[1] != "" {
+					c.SetParamNames("id")
+					c.SetParamValues(parts[1])
+					break
+				}
 			}
 		}
 	}
@@ -273,4 +324,53 @@ func ParseDate(dateStr string) *time.Time {
 		return nil
 	}
 	return &t
+}
+
+// =============================================================================
+// Comment Helpers
+// =============================================================================
+
+// CreateComment creates a test comment for a todo
+func (f *TestFixture) CreateComment(userID, todoID int64, content string) *model.Comment {
+	comment := &model.Comment{
+		UserID:          userID,
+		Content:         content,
+		CommentableType: model.CommentableTypeTodo,
+		CommentableID:   todoID,
+	}
+	require.NoError(f.T, f.DB.Create(comment).Error)
+	return comment
+}
+
+// CreateCommentWithCreatedAt creates a test comment with a specific created_at timestamp
+func (f *TestFixture) CreateCommentWithCreatedAt(userID, todoID int64, content string, createdAt time.Time) *model.Comment {
+	comment := &model.Comment{
+		UserID:          userID,
+		Content:         content,
+		CommentableType: model.CommentableTypeTodo,
+		CommentableID:   todoID,
+		CreatedAt:       createdAt,
+		UpdatedAt:       createdAt,
+	}
+	require.NoError(f.T, f.DB.Create(comment).Error)
+	return comment
+}
+
+// TodoCommentsPath returns the path for todo comments collection
+func TodoCommentsPath(todoID int64) string {
+	return fmt.Sprintf("/api/v1/todos/%d/comments", todoID)
+}
+
+// CommentPath returns the path for a specific comment
+func CommentPath(todoID, commentID int64) string {
+	return fmt.Sprintf("/api/v1/todos/%d/comments/%d", todoID, commentID)
+}
+
+// =============================================================================
+// History Helpers
+// =============================================================================
+
+// TodoHistoriesPath returns the path for todo histories
+func TodoHistoriesPath(todoID int64) string {
+	return fmt.Sprintf("/api/v1/todos/%d/histories", todoID)
 }
