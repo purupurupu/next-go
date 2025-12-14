@@ -4,6 +4,12 @@
 
 The Comments API provides functionality for adding, viewing, updating, and soft-deleting comments on todos. Comments use polymorphic associations, allowing them to be attached to different types of resources (currently only todos).
 
+## Implementation Status
+
+| Backend | Status |
+|---------|--------|
+| Go (Echo) | ✅ Implemented |
+
 ## Authentication Required
 
 All comment endpoints require a valid JWT token in the Authorization header:
@@ -17,7 +23,7 @@ Authorization: Bearer <jwt_token>
 
 Get all comments for a specific todo.
 
-**Endpoint:** `GET /api/todos/:todo_id/comments`
+**Endpoint:** `GET /api/v1/todos/:todo_id/comments`
 
 **URL Parameters:**
 - `todo_id` (required): ID of the todo
@@ -61,7 +67,7 @@ Get all comments for a specific todo.
 
 Add a new comment to a todo.
 
-**Endpoint:** `POST /api/todos/:todo_id/comments`
+**Endpoint:** `POST /api/v1/todos/:todo_id/comments`
 
 **URL Parameters:**
 - `todo_id` (required): ID of the todo
@@ -105,9 +111,9 @@ Add a new comment to a todo.
 
 ### Update Comment
 
-Update an existing comment.
+Update an existing comment. **Note: Comments can only be edited within 15 minutes of creation.**
 
-**Endpoint:** `PUT /api/todos/:todo_id/comments/:id` or `PATCH /api/todos/:todo_id/comments/:id`
+**Endpoint:** `PATCH /api/v1/todos/:todo_id/comments/:id`
 
 **URL Parameters:**
 - `todo_id` (required): ID of the todo
@@ -144,13 +150,14 @@ Update an existing comment.
 **Error Responses:**
 - **403 Forbidden:** User is not authorized to update this comment
 - **404 Not Found:** Comment not found
+- **410 Gone:** Edit time expired (15 minutes limit exceeded)
 - **422 Unprocessable Entity:** Validation errors
 
 ### Delete Comment
 
 Soft delete a comment. The comment is not permanently removed but marked as deleted.
 
-**Endpoint:** `DELETE /api/todos/:todo_id/comments/:id`
+**Endpoint:** `DELETE /api/v1/todos/:todo_id/comments/:id`
 
 **URL Parameters:**
 - `todo_id` (required): ID of the todo
@@ -173,41 +180,47 @@ No response body
 ### Content
 - Required field
 - Cannot be empty
-- No maximum length limit (database TEXT type)
+- Minimum length: 1 character
+- Maximum length: 1000 characters
 
 ## Authorization Rules
 
-1. **Viewing**: All authenticated users can view comments on their own todos
-2. **Creating**: All authenticated users can create comments on their own todos
-3. **Updating**: Users can only update their own comments
+1. **Viewing**: Authenticated users can view comments on their own todos
+2. **Creating**: Authenticated users can create comments on their own todos
+3. **Updating**: Users can only update their own comments **within 15 minutes of creation**
 4. **Deleting**: Users can only delete their own comments
+
+## Edit Time Limitation
+
+Comments can only be edited within **15 minutes** of creation. After this period:
+- The `editable` field in the response becomes `false`
+- Update requests will return a **410 Gone** error with the message "Edit time has expired"
+
+This design encourages thoughtful commenting while still allowing quick corrections to typos or mistakes.
 
 ## Frontend Integration Example
 
-```javascript
-class CommentApiClient {
-  constructor(httpClient) {
-    this.httpClient = httpClient;
+```typescript
+// Using ApiClient pattern from the project
+class CommentApiClient extends ApiClient {
+  async getComments(todoId: number) {
+    return this.get<{ comments: Comment[] }>(`/todos/${todoId}/comments`);
   }
 
-  async getComments(todoId) {
-    return this.httpClient.get(`/api/todos/${todoId}/comments`);
-  }
-
-  async createComment(todoId, data) {
-    return this.httpClient.post(`/api/todos/${todoId}/comments`, {
-      comment: data
+  async createComment(todoId: number, content: string) {
+    return this.post<{ data: { comment: Comment } }>(`/todos/${todoId}/comments`, {
+      comment: { content }
     });
   }
 
-  async updateComment(todoId, commentId, data) {
-    return this.httpClient.put(`/api/todos/${todoId}/comments/${commentId}`, {
-      comment: data
+  async updateComment(todoId: number, commentId: number, content: string) {
+    return this.patch<{ comment: Comment }>(`/todos/${todoId}/comments/${commentId}`, {
+      comment: { content }
     });
   }
 
-  async deleteComment(todoId, commentId) {
-    return this.httpClient.delete(`/api/todos/${todoId}/comments/${commentId}`);
+  async deleteComment(todoId: number, commentId: number) {
+    return this.delete(`/todos/${todoId}/comments/${commentId}`);
   }
 }
 ```
