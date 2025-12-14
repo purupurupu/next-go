@@ -2,7 +2,7 @@
 
 ## Technology Stack
 
-- **Language**: Go 1.25
+- **Language**: Go 1.23
 - **Framework**: Echo v4 (Web framework)
 - **ORM**: GORM
 - **Database**: PostgreSQL 15
@@ -26,6 +26,8 @@ backend/
 │   ├── handler/
 │   │   ├── auth.go             # 認証ハンドラ
 │   │   ├── todo.go             # Todo CRUD
+│   │   ├── category.go         # Category CRUD
+│   │   ├── tag.go              # Tag CRUD
 │   │   └── helpers.go          # 共通ヘルパー関数
 │   ├── middleware/
 │   │   └── auth.go             # JWT認証ミドルウェア
@@ -39,6 +41,8 @@ backend/
 │   │   ├── interfaces.go       # リポジトリインターフェース定義
 │   │   ├── user.go             # Userリポジトリ
 │   │   ├── todo.go             # Todoリポジトリ
+│   │   ├── category.go         # Categoryリポジトリ
+│   │   ├── tag.go              # Tagリポジトリ
 │   │   └── jwt_denylist.go     # JWT Denylistリポジトリ
 │   ├── service/
 │   │   └── auth.go             # 認証サービス（ビジネスロジック）
@@ -101,8 +105,14 @@ backend/
 AuthHandler → AuthService → UserRepository, JwtDenylistRepository
   └─ 認証ロジック（パスワードハッシュ化、JWT生成/検証）があるためService経由
 
-TodoHandler → TodoRepository (直接)
-  └─ 単純なCRUDのみのためService層をスキップ
+TodoHandler → TodoRepository, CategoryRepository (直接)
+  └─ 単純なCRUD + カウンターキャッシュ更新
+
+CategoryHandler → CategoryRepository (直接)
+  └─ 単純なCRUDのみ
+
+TagHandler → TagRepository (直接)
+  └─ 単純なCRUDのみ
 ```
 
 **Service層を追加するタイミング:**
@@ -131,7 +141,27 @@ type TodoRepositoryInterface interface {
     Create(todo *model.Todo) error
     Update(todo *model.Todo) error
     Delete(id, userID int64) error
-    // ...
+    UpdateOrder(userID int64, todoIDs []int64) error
+}
+
+type CategoryRepositoryInterface interface {
+    FindAllByUserID(userID int64) ([]model.Category, error)
+    FindByID(id, userID int64) (*model.Category, error)
+    Create(category *model.Category) error
+    Update(category *model.Category) error
+    Delete(id, userID int64) error
+    ExistsByName(name string, userID int64, excludeID *int64) (bool, error)
+    IncrementTodosCount(categoryID int64) error
+    DecrementTodosCount(categoryID int64) error
+}
+
+type TagRepositoryInterface interface {
+    FindAllByUserID(userID int64) ([]model.Tag, error)
+    FindByID(id, userID int64) (*model.Tag, error)
+    Create(tag *model.Tag) error
+    Update(tag *model.Tag) error
+    Delete(id, userID int64) error
+    ExistsByName(name string, userID int64, excludeID *int64) (bool, error)
 }
 ```
 
@@ -230,12 +260,27 @@ POST   /auth/sign_in     # ログイン
 DELETE /auth/sign_out    # ログアウト（要認証）
 
 # API v1 (Protected)
-GET    /api/v1/todos           # Todo一覧
-POST   /api/v1/todos           # Todo作成
-GET    /api/v1/todos/:id       # Todo詳細
-PATCH  /api/v1/todos/:id       # Todo更新
-DELETE /api/v1/todos/:id       # Todo削除
-PATCH  /api/v1/todos/update_order  # 順序更新
+# Todos
+GET    /api/v1/todos              # Todo一覧
+POST   /api/v1/todos              # Todo作成
+GET    /api/v1/todos/:id          # Todo詳細
+PATCH  /api/v1/todos/:id          # Todo更新
+DELETE /api/v1/todos/:id          # Todo削除
+PATCH  /api/v1/todos/update_order # 順序更新
+
+# Categories
+GET    /api/v1/categories         # Category一覧
+POST   /api/v1/categories         # Category作成
+GET    /api/v1/categories/:id     # Category詳細
+PATCH  /api/v1/categories/:id     # Category更新
+DELETE /api/v1/categories/:id     # Category削除
+
+# Tags
+GET    /api/v1/tags               # Tag一覧
+POST   /api/v1/tags               # Tag作成
+GET    /api/v1/tags/:id           # Tag詳細
+PATCH  /api/v1/tags/:id           # Tag更新
+DELETE /api/v1/tags/:id           # Tag削除
 ```
 
 ### Response Format
@@ -293,14 +338,17 @@ PATCH  /api/v1/todos/update_order  # 順序更新
 ```go
 // internal/testutil/fixture.go
 type TestFixture struct {
-    T            *testing.T
-    DB           *gorm.DB
-    Echo         *echo.Echo
-    UserRepo     *repository.UserRepository
-    TodoRepo     *repository.TodoRepository
-    AuthHandler  *handler.AuthHandler
-    TodoHandler  *handler.TodoHandler
-    // ...
+    T               *testing.T
+    DB              *gorm.DB
+    Echo            *echo.Echo
+    UserRepo        *repository.UserRepository
+    TodoRepo        *repository.TodoRepository
+    CategoryRepo    *repository.CategoryRepository
+    TagRepo         *repository.TagRepository
+    AuthHandler     *handler.AuthHandler
+    TodoHandler     *handler.TodoHandler
+    CategoryHandler *handler.CategoryHandler
+    TagHandler      *handler.TagHandler
 }
 
 // 使用例
@@ -322,7 +370,12 @@ func TestTodoCreate(t *testing.T) {
 func JSONResponse(t *testing.T, rec *httptest.ResponseRecorder) map[string]any
 func ExtractStatusCode(response map[string]any) int
 func ExtractData(response map[string]any) map[string]any
-func ExtractTodo(response map[string]any) map[string]any
+
+// ジェネリックヘルパー（Todo, Category, Tag共通）
+func ExtractResource[T string](response map[string]any, key T) map[string]any
+func ExtractResourceFromData[T string](response map[string]any, key T) map[string]any
+func ExtractResources[T string](response map[string]any, key T) []any
+func ResourceAt(resources []any, index int) map[string]any
 ```
 
 ---
@@ -339,7 +392,12 @@ func ExtractTodo(response map[string]any) map[string]any
 
 ## Performance
 
-1. **Database Indexes**: user_id, position等の頻出カラムにインデックス
-2. **Connection Pool**: GORMのSetMaxOpenConns, SetMaxIdleConns設定
-3. **Eager Loading**: Preload()でN+1問題を回避
-4. **Graceful Shutdown**: 10秒のシャットダウンタイムアウト
+1. **Database Indexes**:
+   - `todos`: user_id, position, category_id
+   - `categories`: (user_id, name) 複合ユニークインデックス
+   - `tags`: (user_id, name) 複合ユニークインデックス
+   - `todo_tags`: (todo_id, tag_id) 複合ユニークインデックス
+2. **Counter Cache**: `categories.todos_count` をIncrement/Decrementで効率的に更新
+3. **Connection Pool**: GORMのSetMaxOpenConns, SetMaxIdleConns設定
+4. **Eager Loading**: Preload()でN+1問題を回避
+5. **Graceful Shutdown**: 10秒のシャットダウンタイムアウト
