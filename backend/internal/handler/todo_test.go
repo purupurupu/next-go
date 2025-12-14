@@ -345,3 +345,368 @@ func TestTodo_AutoPosition(t *testing.T) {
 	// Second todo should have higher position
 	assert.Greater(t, pos2, pos1)
 }
+
+// ==================== Search Tests ====================
+
+// TestTodoSearch_Basic tests basic search without filters
+func TestTodoSearch_Basic(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("search@example.com")
+	f.CreateTodo(user.ID, "Meeting notes")
+	f.CreateTodo(user.ID, "Shopping list")
+	f.CreateTodo(user.ID, "Project plan")
+
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 3)
+
+	meta := response["meta"].(map[string]any)
+	assert.Equal(t, float64(3), meta["total"])
+	assert.Equal(t, float64(1), meta["current_page"])
+}
+
+// TestTodoSearch_TextQuery tests text search in title and description
+func TestTodoSearch_TextQuery(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("textsearch@example.com")
+	desc := "Important discussion about project"
+	f.CreateTodoWithDetails(user.ID, "Meeting notes", testutil.TodoOptions{Description: &desc})
+	f.CreateTodo(user.ID, "Shopping list")
+	f.CreateTodo(user.ID, "Project plan")
+
+	// Search by title
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?q=meeting", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 1)
+
+	// Search by description
+	rec2, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?q=discussion", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response2 := testutil.JSONResponse(t, rec2)
+	data2 := response2["data"].([]any)
+	assert.Len(t, data2, 1)
+}
+
+// TestTodoSearch_StatusFilter tests status filter with multiple values
+func TestTodoSearch_StatusFilter(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("statusfilter@example.com")
+	f.CreateTodoWithDetails(user.ID, "Pending task", testutil.TodoOptions{Status: model.StatusPending})
+	f.CreateTodoWithDetails(user.ID, "In progress task", testutil.TodoOptions{Status: model.StatusInProgress})
+	f.CreateTodoWithDetails(user.ID, "Completed task", testutil.TodoOptions{Status: model.StatusCompleted})
+
+	// Filter by single status
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?status=pending", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 1)
+
+	// Filter by multiple statuses (comma-separated)
+	rec2, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?status=pending,in_progress", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response2 := testutil.JSONResponse(t, rec2)
+	data2 := response2["data"].([]any)
+	assert.Len(t, data2, 2)
+}
+
+// TestTodoSearch_PriorityFilter tests priority filter
+func TestTodoSearch_PriorityFilter(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("priorityfilter@example.com")
+	f.CreateTodoWithDetails(user.ID, "Low priority", testutil.TodoOptions{Priority: model.PriorityLow})
+	f.CreateTodoWithDetails(user.ID, "Medium priority", testutil.TodoOptions{Priority: model.PriorityMedium})
+	f.CreateTodoWithDetails(user.ID, "High priority", testutil.TodoOptions{Priority: model.PriorityHigh})
+
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?priority=high", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 1)
+
+	firstTodo := data[0].(map[string]any)
+	assert.Equal(t, "High priority", firstTodo["title"])
+}
+
+// TestTodoSearch_CategoryFilter tests category filter
+func TestTodoSearch_CategoryFilter(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("categoryfilter@example.com")
+	category := f.CreateCategory(user.ID, "Work", "#FF0000")
+
+	f.CreateTodoWithDetails(user.ID, "Work task", testutil.TodoOptions{CategoryID: &category.ID})
+	f.CreateTodo(user.ID, "Personal task")
+
+	// Filter by category
+	rec, err := f.CallAuth(token, http.MethodGet, fmt.Sprintf("/api/v1/todos/search?category_id=%d", category.ID), "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 1)
+	assert.Equal(t, "Work task", data[0].(map[string]any)["title"])
+}
+
+// TestTodoSearch_CategoryNullFilter tests filtering todos with no category
+func TestTodoSearch_CategoryNullFilter(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("categorynull@example.com")
+	category := f.CreateCategory(user.ID, "Work", "#FF0000")
+
+	f.CreateTodoWithDetails(user.ID, "Work task", testutil.TodoOptions{CategoryID: &category.ID})
+	f.CreateTodo(user.ID, "Uncategorized task 1")
+	f.CreateTodo(user.ID, "Uncategorized task 2")
+
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?category_id=-1", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 2)
+}
+
+// TestTodoSearch_TagFilterAny tests tag filter with "any" mode (OR)
+func TestTodoSearch_TagFilterAny(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("tagany@example.com")
+	tag1 := f.CreateTag(user.ID, "urgent", nil)
+	tag2 := f.CreateTag(user.ID, "important", nil)
+
+	todo1 := f.CreateTodo(user.ID, "Task with urgent tag")
+	f.AssociateTagWithTodo(todo1.ID, tag1.ID)
+
+	todo2 := f.CreateTodo(user.ID, "Task with important tag")
+	f.AssociateTagWithTodo(todo2.ID, tag2.ID)
+
+	f.CreateTodo(user.ID, "Task with no tags")
+
+	// Search with tag_mode=any (default)
+	rec, err := f.CallAuth(token, http.MethodGet, fmt.Sprintf("/api/v1/todos/search?tag_ids=%d,%d&tag_mode=any", tag1.ID, tag2.ID), "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 2)
+}
+
+// TestTodoSearch_TagFilterAll tests tag filter with "all" mode (AND)
+func TestTodoSearch_TagFilterAll(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("tagall@example.com")
+	tag1 := f.CreateTag(user.ID, "urgent", nil)
+	tag2 := f.CreateTag(user.ID, "important", nil)
+
+	// Todo with both tags
+	todo1 := f.CreateTodo(user.ID, "Task with both tags")
+	f.AssociateTagWithTodo(todo1.ID, tag1.ID)
+	f.AssociateTagWithTodo(todo1.ID, tag2.ID)
+
+	// Todo with only one tag
+	todo2 := f.CreateTodo(user.ID, "Task with urgent tag only")
+	f.AssociateTagWithTodo(todo2.ID, tag1.ID)
+
+	// Search with tag_mode=all
+	rec, err := f.CallAuth(token, http.MethodGet, fmt.Sprintf("/api/v1/todos/search?tag_ids=%d,%d&tag_mode=all", tag1.ID, tag2.ID), "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 1)
+	assert.Equal(t, "Task with both tags", data[0].(map[string]any)["title"])
+}
+
+// TestTodoSearch_DateRangeFilter tests due date range filter
+func TestTodoSearch_DateRangeFilter(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("daterange@example.com")
+
+	date1 := testutil.ParseDate("2030-01-15")
+	date2 := testutil.ParseDate("2030-02-15")
+	date3 := testutil.ParseDate("2030-03-15")
+
+	f.CreateTodoWithDetails(user.ID, "January task", testutil.TodoOptions{DueDate: date1})
+	f.CreateTodoWithDetails(user.ID, "February task", testutil.TodoOptions{DueDate: date2})
+	f.CreateTodoWithDetails(user.ID, "March task", testutil.TodoOptions{DueDate: date3})
+
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?due_date_from=2030-01-01&due_date_to=2030-02-28", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 2)
+}
+
+// TestTodoSearch_Pagination tests pagination
+func TestTodoSearch_Pagination(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("pagination@example.com")
+
+	// Create 15 todos
+	for i := 1; i <= 15; i++ {
+		f.CreateTodo(user.ID, fmt.Sprintf("Todo %d", i))
+	}
+
+	// Get first page (5 per page)
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?page=1&per_page=5", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	meta := response["meta"].(map[string]any)
+
+	assert.Len(t, data, 5)
+	assert.Equal(t, float64(15), meta["total"])
+	assert.Equal(t, float64(1), meta["current_page"])
+	assert.Equal(t, float64(3), meta["total_pages"])
+	assert.Equal(t, float64(5), meta["per_page"])
+
+	// Get second page
+	rec2, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?page=2&per_page=5", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response2 := testutil.JSONResponse(t, rec2)
+	data2 := response2["data"].([]any)
+	assert.Len(t, data2, 5)
+}
+
+// TestTodoSearch_Sorting tests sort functionality
+func TestTodoSearch_Sorting(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("sorting@example.com")
+	f.CreateTodoWithDetails(user.ID, "A - Low", testutil.TodoOptions{Priority: model.PriorityLow})
+	f.CreateTodoWithDetails(user.ID, "B - High", testutil.TodoOptions{Priority: model.PriorityHigh})
+	f.CreateTodoWithDetails(user.ID, "C - Medium", testutil.TodoOptions{Priority: model.PriorityMedium})
+
+	// Sort by priority descending
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?sort_by=priority&sort_order=desc", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 3)
+
+	// High priority should come first
+	assert.Equal(t, "B - High", data[0].(map[string]any)["title"])
+}
+
+// TestTodoSearch_DueDateSortNullLast tests that NULL due dates come last
+func TestTodoSearch_DueDateSortNullLast(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("nulllast@example.com")
+
+	date1 := testutil.ParseDate("2030-01-15")
+	f.CreateTodoWithDetails(user.ID, "With due date", testutil.TodoOptions{DueDate: date1})
+	f.CreateTodo(user.ID, "No due date 1")
+	f.CreateTodo(user.ID, "No due date 2")
+
+	// Sort by due_date ascending
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?sort_by=due_date&sort_order=asc", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 3)
+
+	// Todo with due date should come first
+	assert.Equal(t, "With due date", data[0].(map[string]any)["title"])
+}
+
+// TestTodoSearch_UserScope tests that users only see their own todos in search
+func TestTodoSearch_UserScope(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user1, token1 := f.CreateUser("searchuser1@example.com")
+	user2, _ := f.CreateUser("searchuser2@example.com")
+
+	f.CreateTodo(user1.ID, "User1's Todo")
+	f.CreateTodo(user2.ID, "User2's Todo")
+
+	rec, err := f.CallAuth(token1, http.MethodGet, "/api/v1/todos/search", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 1)
+	assert.Equal(t, "User1's Todo", data[0].(map[string]any)["title"])
+}
+
+// TestTodoSearch_EmptyResultSuggestions tests suggestions for empty results
+func TestTodoSearch_EmptyResultSuggestions(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("suggestions@example.com")
+	f.CreateTodo(user.ID, "Some task")
+
+	rec, err := f.CallAuth(token, http.MethodGet, "/api/v1/todos/search?q=nonexistent", "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 0)
+
+	suggestions := response["suggestions"]
+	assert.NotNil(t, suggestions)
+}
+
+// TestTodoSearch_CombinedFilters tests multiple filters combined
+func TestTodoSearch_CombinedFilters(t *testing.T) {
+	f := testutil.SetupTestFixture(t)
+
+	user, token := f.CreateUser("combined@example.com")
+	category := f.CreateCategory(user.ID, "Work", "#FF0000")
+	tag := f.CreateTag(user.ID, "urgent", nil)
+
+	// Create various todos
+	todo1 := f.CreateTodoWithDetails(user.ID, "Work urgent pending", testutil.TodoOptions{
+		CategoryID: &category.ID,
+		Priority:   model.PriorityHigh,
+		Status:     model.StatusPending,
+	})
+	f.AssociateTagWithTodo(todo1.ID, tag.ID)
+
+	f.CreateTodoWithDetails(user.ID, "Work low priority", testutil.TodoOptions{
+		CategoryID: &category.ID,
+		Priority:   model.PriorityLow,
+		Status:     model.StatusPending,
+	})
+
+	f.CreateTodoWithDetails(user.ID, "Personal high priority", testutil.TodoOptions{
+		Priority: model.PriorityHigh,
+		Status:   model.StatusPending,
+	})
+
+	// Combined filter: category + priority + tag
+	rec, err := f.CallAuth(token, http.MethodGet, fmt.Sprintf("/api/v1/todos/search?category_id=%d&priority=high&tag_ids=%d", category.ID, tag.ID), "", f.TodoHandler.Search)
+	require.NoError(t, err)
+
+	response := testutil.JSONResponse(t, rec)
+	data := response["data"].([]any)
+	assert.Len(t, data, 1)
+	assert.Equal(t, "Work urgent pending", data[0].(map[string]any)["title"])
+}
