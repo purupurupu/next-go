@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
@@ -223,4 +224,53 @@ func (f *TestFixture) CallAuthCategory(token, method, path, body string, handler
 // CallAuthTag calls a tag handler with authentication (alias for CallAuthGeneric)
 func (f *TestFixture) CallAuthTag(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
 	return f.CallAuthGeneric(token, method, path, body, handlerFunc)
+}
+
+// TodoOptions contains options for creating a todo with details
+type TodoOptions struct {
+	Description *string
+	CategoryID  *int64
+	Priority    model.Priority
+	Status      model.Status
+	DueDate     *time.Time
+	TagIDs      []int64
+}
+
+// CreateTodoWithDetails creates a test todo with full details
+func (f *TestFixture) CreateTodoWithDetails(userID int64, title string, opts TodoOptions) *model.Todo {
+	todo := &model.Todo{
+		UserID:      userID,
+		Title:       title,
+		Description: opts.Description,
+		CategoryID:  opts.CategoryID,
+		Priority:    opts.Priority,
+		Status:      opts.Status,
+		DueDate:     opts.DueDate,
+	}
+	require.NoError(f.T, f.DB.Create(todo).Error)
+
+	// Associate tags if provided
+	if len(opts.TagIDs) > 0 {
+		for _, tagID := range opts.TagIDs {
+			todoTag := &model.TodoTag{TodoID: todo.ID, TagID: tagID}
+			require.NoError(f.T, f.DB.Create(todoTag).Error)
+		}
+	}
+
+	return todo
+}
+
+// AssociateTagWithTodo associates a tag with a todo
+func (f *TestFixture) AssociateTagWithTodo(todoID, tagID int64) {
+	todoTag := &model.TodoTag{TodoID: todoID, TagID: tagID}
+	require.NoError(f.T, f.DB.Create(todoTag).Error)
+}
+
+// ParseDate parses a date string in YYYY-MM-DD format
+func ParseDate(dateStr string) *time.Time {
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return nil
+	}
+	return &t
 }
