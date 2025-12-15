@@ -4,16 +4,20 @@ import { useState } from "react";
 import { File, Image, FileText, FileSpreadsheet, Archive, Download, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/lib/constants";
 import type { TodoFile } from "@/features/todo/types/todo";
 import { todoApiClient } from "@/features/todo/lib/api-client";
 import { toast } from "sonner";
+import { FileThumbnail } from "./FileThumbnail";
+import { FilePreviewModal } from "./FilePreviewModal";
 
 interface AttachmentListProps {
   todoId: number;
   files: TodoFile[];
-  onDelete?: (fileId: string | number) => void;
+  onDelete?: (fileId: number) => void;
   disabled?: boolean;
   compact?: boolean;
+  showThumbnails?: boolean;
 }
 
 export function AttachmentList({
@@ -22,9 +26,22 @@ export function AttachmentList({
   onDelete,
   disabled = false,
   compact = false,
+  showThumbnails = true,
 }: AttachmentListProps) {
-  const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
-  const [deletingIds, setDeletingIds] = useState<Set<string | number>>(new Set());
+  const [downloadingIds, setDownloadingIds] = useState<Set<number>>(new Set());
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
+  // Get file name (supports both old and new format)
+  const getFileName = (file: TodoFile): string => {
+    return file.original_name || file.filename || "Unknown file";
+  };
+
+  // Get file size (supports both old and new format)
+  const getFileSize = (file: TodoFile): number => {
+    return file.file_size || file.byte_size || 0;
+  };
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes";
@@ -34,17 +51,20 @@ export function AttachmentList({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith("image/")) {
+  const getFileIcon = (file: TodoFile) => {
+    const fileType = file.file_type || "other";
+    const contentType = file.content_type || "";
+
+    if (fileType === "image" || contentType.startsWith("image/")) {
       return <Image className="h-4 w-4" aria-label="Image file" />;
     }
-    if (fileType === "application/pdf" || fileType === "text/plain") {
+    if (contentType === "application/pdf" || contentType === "text/plain") {
       return <FileText className="h-4 w-4" />;
     }
-    if (fileType.includes("spreadsheet") || fileType === "text/csv") {
+    if (contentType.includes("spreadsheet") || contentType === "text/csv") {
       return <FileSpreadsheet className="h-4 w-4" />;
     }
-    if (fileType.includes("zip") || fileType.includes("tar") || fileType.includes("gzip")) {
+    if (contentType.includes("zip") || contentType.includes("tar") || contentType.includes("gzip")) {
       return <Archive className="h-4 w-4" />;
     }
     return <File className="h-4 w-4" />;
@@ -54,23 +74,33 @@ export function AttachmentList({
     try {
       setDownloadingIds((prev) => new Set(prev).add(file.id));
 
-      // Use the file URL directly for download
-      const response = await fetch(file.url);
+      const token = localStorage.getItem("authToken");
+      const url = `${API_BASE_URL}/api/v1/todos/${todoId}/files/${file.id}`;
+
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Download failed");
+      }
+
       const blob = await response.blob();
 
       // Create a download link
-      const url = window.URL.createObjectURL(blob);
+      const objectUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = file.filename;
+      a.href = objectUrl;
+      a.download = getFileName(file);
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(objectUrl);
       document.body.removeChild(a);
 
-      toast.success(`Downloaded ${file.filename}`);
+      toast.success(`${getFileName(file)} をダウンロードしました`);
     } catch {
-      toast.error("Failed to download file");
+      toast.error("ダウンロードに失敗しました");
     } finally {
       setDownloadingIds((prev) => {
         const newSet = new Set(prev);
@@ -80,16 +110,16 @@ export function AttachmentList({
     }
   };
 
-  const handleDelete = async (fileId: string | number) => {
+  const handleDelete = async (fileId: number) => {
     if (!onDelete) return;
 
     try {
       setDeletingIds((prev) => new Set(prev).add(fileId));
-      await todoApiClient.deleteTodoFile(todoId, fileId);
+      await todoApiClient.deleteFile(todoId, fileId);
       onDelete(fileId);
-      toast.success("File deleted");
+      toast.success("ファイルを削除しました");
     } catch {
-      toast.error("Failed to delete file");
+      toast.error("ファイルの削除に失敗しました");
     } finally {
       setDeletingIds((prev) => {
         const newSet = new Set(prev);
@@ -99,9 +129,24 @@ export function AttachmentList({
     }
   };
 
+  const handleThumbnailClick = (index: number) => {
+    // Find the index in image files
+    const imageFiles = files.filter((f) => f.file_type === "image");
+    const imageIndex = imageFiles.findIndex((f) => f.id === files[index].id);
+
+    if (imageIndex !== -1) {
+      setPreviewIndex(imageIndex);
+      setPreviewOpen(true);
+    }
+  };
+
   if (files.length === 0) {
     return null;
   }
+
+  // Separate images and other files for grid display
+  const imageFiles = files.filter((f) => f.file_type === "image");
+  const otherFiles = files.filter((f) => f.file_type !== "image");
 
   if (compact) {
     return (
@@ -111,12 +156,10 @@ export function AttachmentList({
             key={file.id}
             className="flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"
           >
-            {getFileIcon(file.content_type)}
-            <span className="max-w-[100px] truncate">{file.filename}</span>
+            {getFileIcon(file)}
+            <span className="max-w-[100px] truncate">{getFileName(file)}</span>
             <span className="text-muted-foreground">
-              (
-              {formatFileSize(file.byte_size)}
-              )
+              ({formatFileSize(getFileSize(file))})
             </span>
           </div>
         ))}
@@ -125,73 +168,181 @@ export function AttachmentList({
   }
 
   return (
-    <div className="space-y-2">
-      {files.map((file) => {
-        const isDownloading = downloadingIds.has(file.id);
-        const isDeleting = deletingIds.has(file.id);
+    <div className="space-y-4">
+      {/* Image thumbnails grid */}
+      {showThumbnails && imageFiles.length > 0 && (
+        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+          {imageFiles.map((file, index) => {
+            const globalIndex = files.findIndex((f) => f.id === file.id);
+            return (
+              <div key={file.id} className="relative group">
+                <FileThumbnail
+                  file={file}
+                  todoId={todoId}
+                  size="small"
+                  onClick={() => handleThumbnailClick(globalIndex)}
+                  className="w-full aspect-square"
+                />
+                {onDelete && (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => handleDelete(file.id)}
+                    disabled={disabled || deletingIds.has(file.id)}
+                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    {deletingIds.has(file.id) ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3 w-3" />
+                    )}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-        return (
-          <div
-            key={file.id}
-            className={cn(
-              "flex items-center gap-3 rounded-lg border bg-card p-3",
-              (isDownloading || isDeleting) && "opacity-50",
-            )}
-          >
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-muted">
-              {getFileIcon(file.content_type)}
-            </div>
+      {/* Other files list */}
+      {otherFiles.length > 0 && (
+        <div className="space-y-2">
+          {otherFiles.map((file) => {
+            const isDownloading = downloadingIds.has(file.id);
+            const isDeleting = deletingIds.has(file.id);
 
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{file.filename}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatFileSize(file.byte_size)}
-                {" "}
-                •
-                {file.url && "Available"}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDownload(file)}
-                disabled={disabled || isDownloading || isDeleting}
-                className="h-8 w-8"
+            return (
+              <div
+                key={file.id}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg border bg-card p-3",
+                  (isDownloading || isDeleting) && "opacity-50",
+                )}
               >
-                {isDownloading
-                  ? (
+                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-muted">
+                  {getFileIcon(file)}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{getFileName(file)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(getFileSize(file))}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDownload(file)}
+                    disabled={disabled || isDownloading || isDeleting}
+                    className="h-8 w-8"
+                  >
+                    {isDownloading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    )
-                  : (
+                    ) : (
                       <Download className="h-4 w-4" />
                     )}
-                <span className="sr-only">Download</span>
-              </Button>
+                    <span className="sr-only">Download</span>
+                  </Button>
 
-              {onDelete && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(file.id)}
-                  disabled={disabled || isDeleting || isDownloading}
-                  className="h-8 w-8 text-destructive hover:text-destructive"
-                >
-                  {isDeleting
-                    ? (
+                  {onDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(file.id)}
+                      disabled={disabled || isDeleting || isDownloading}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      {isDeleting ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
-                      )
-                    : (
+                      ) : (
                         <Trash2 className="h-4 w-4" />
                       )}
-                  <span className="sr-only">Delete</span>
-                </Button>
-              )}
-            </div>
-          </div>
-        );
-      })}
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Image files list (when not showing thumbnails) */}
+      {!showThumbnails && imageFiles.length > 0 && (
+        <div className="space-y-2">
+          {imageFiles.map((file) => {
+            const isDownloading = downloadingIds.has(file.id);
+            const isDeleting = deletingIds.has(file.id);
+
+            return (
+              <div
+                key={file.id}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg border bg-card p-3",
+                  (isDownloading || isDeleting) && "opacity-50",
+                )}
+              >
+                <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-muted">
+                  {getFileIcon(file)}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{getFileName(file)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(getFileSize(file))}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDownload(file)}
+                    disabled={disabled || isDownloading || isDeleting}
+                    className="h-8 w-8"
+                  >
+                    {isDownloading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    <span className="sr-only">Download</span>
+                  </Button>
+
+                  {onDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(file.id)}
+                      disabled={disabled || isDeleting || isDownloading}
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Image preview modal */}
+      <FilePreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        files={files}
+        initialIndex={previewIndex}
+        todoId={todoId}
+        onDownload={handleDownload}
+      />
     </div>
   );
 }
