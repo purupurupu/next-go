@@ -105,9 +105,7 @@ func (h *CategoryHandler) Show(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "CategoryHandler.Show: failed to fetch category")
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"category": toCategoryResponse(category),
-	})
+	return c.JSON(http.StatusOK, toCategoryResponse(category))
 }
 
 // Create creates a new category
@@ -142,9 +140,7 @@ func (h *CategoryHandler) Create(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "CategoryHandler.Create: failed to create category")
 	}
 
-	return response.Created(c, map[string]any{
-		"category": toCategoryResponse(category),
-	}, "Category created successfully")
+	return response.Created(c, toCategoryResponse(category), "Category created successfully")
 }
 
 // Update updates an existing category
@@ -193,9 +189,7 @@ func (h *CategoryHandler) Update(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "CategoryHandler.Update: failed to update category")
 	}
 
-	return response.Success(c, map[string]any{
-		"category": toCategoryResponse(category),
-	})
+	return response.Success(c, toCategoryResponse(category))
 }
 
 // Delete removes a category

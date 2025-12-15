@@ -79,7 +79,7 @@ class HttpClient {
       const json = await response.json();
 
       // Handle v1 API response format
-      if (json && typeof json === "object" && "data" in json && "status" in json) {
+      if (json && typeof json === "object" && "data" in json) {
         // For search endpoints, preserve meta and suggestions
         if (json.meta || json.suggestions) {
           return {
@@ -171,7 +171,7 @@ class HttpClient {
       const json = await response.json();
 
       // Handle v1 API response format
-      if (json && typeof json === "object" && "data" in json && "status" in json) {
+      if (json && typeof json === "object" && "data" in json) {
         // For search endpoints, preserve meta and suggestions
         if (json.meta || json.suggestions) {
           return {

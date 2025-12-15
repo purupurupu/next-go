@@ -103,9 +103,7 @@ func (h *TagHandler) Show(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TagHandler.Show: failed to fetch tag")
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"tag": toTagResponse(tag),
-	})
+	return c.JSON(http.StatusOK, toTagResponse(tag))
 }
 
 // Create creates a new tag
@@ -140,9 +138,7 @@ func (h *TagHandler) Create(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TagHandler.Create: failed to create tag")
 	}
 
-	return response.Created(c, map[string]any{
-		"tag": toTagResponse(tag),
-	}, "Tag created successfully")
+	return response.Created(c, toTagResponse(tag), "Tag created successfully")
 }
 
 // Update updates an existing tag
@@ -191,9 +187,7 @@ func (h *TagHandler) Update(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TagHandler.Update: failed to update tag")
 	}
 
-	return response.Success(c, map[string]any{
-		"tag": toTagResponse(tag),
-	})
+	return response.Success(c, toTagResponse(tag))
 }
 
 // Delete removes a tag

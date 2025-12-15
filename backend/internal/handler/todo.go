@@ -178,9 +178,7 @@ func (h *TodoHandler) Show(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TodoHandler.Show: failed to fetch todo")
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"todo": toTodoResponse(todo),
-	})
+	return c.JSON(http.StatusOK, toTodoResponse(todo))
 }
 
 // Create creates a new todo
@@ -210,9 +208,7 @@ func (h *TodoHandler) Create(c echo.Context) error {
 		return err
 	}
 
-	return response.Created(c, map[string]any{
-		"todo": toTodoResponse(todo),
-	}, "Todo created successfully")
+	return response.Created(c, toTodoResponse(todo), "Todo created successfully")
 }
 
 // Update updates an existing todo
@@ -250,9 +246,7 @@ func (h *TodoHandler) Update(c echo.Context) error {
 		return err
 	}
 
-	return response.Success(c, map[string]any{
-		"todo": toTodoResponse(todo),
-	})
+	return response.Success(c, toTodoResponse(todo))
 }
 
 // Delete removes a todo
