@@ -44,14 +44,15 @@ type CreateTodoRequest struct {
 
 // UpdateTodoRequest represents the request body for updating a todo
 type UpdateTodoRequest struct {
-	Title       *string `json:"title" validate:"omitempty,min=1,max=255"`
-	Description *string `json:"description" validate:"omitempty,max=10000"`
-	CategoryID  *int64  `json:"category_id"`
-	Completed   *bool   `json:"completed"`
-	Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high"`
-	Status      *string `json:"status" validate:"omitempty,oneof=pending in_progress completed"`
-	DueDate     *string `json:"due_date"`
-	Position    *int    `json:"position"`
+	Title       *string  `json:"title" validate:"omitempty,min=1,max=255"`
+	Description *string  `json:"description" validate:"omitempty,max=10000"`
+	CategoryID  *int64   `json:"category_id"`
+	Completed   *bool    `json:"completed"`
+	Priority    *string  `json:"priority" validate:"omitempty,oneof=low medium high"`
+	Status      *string  `json:"status" validate:"omitempty,oneof=pending in_progress completed"`
+	DueDate     *string  `json:"due_date"`
+	Position    *int     `json:"position"`
+	TagIDs      *[]int64 `json:"tag_ids"`
 }
 
 // UpdateOrderRequest represents the request body for updating todo positions
@@ -238,6 +239,7 @@ func (h *TodoHandler) Update(c echo.Context) error {
 		Status:      req.Status,
 		DueDate:     req.DueDate,
 		Position:    req.Position,
+		TagIDs:      req.TagIDs,
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

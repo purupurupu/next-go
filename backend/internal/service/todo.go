@@ -54,6 +54,7 @@ type UpdateInput struct {
 	Status      *string
 	DueDate     *string
 	Position    *int
+	TagIDs      *[]int64
 }
 
 // Create creates a new todo
@@ -146,6 +147,13 @@ func (s *TodoService) Update(todoID, userID int64, input UpdateInput) (*model.To
 	// Save changes
 	if err := s.todoRepo.Update(todo); err != nil {
 		return nil, errors.InternalErrorWithLog(err, "TodoService.Update: failed to update todo")
+	}
+
+	// Update tags if provided
+	if input.TagIDs != nil {
+		if err := s.todoRepo.ReplaceTags(todoID, *input.TagIDs); err != nil {
+			return nil, errors.InternalErrorWithLog(err, "TodoService.Update: failed to update tags")
+		}
 	}
 
 	// Record history
