@@ -83,9 +83,7 @@ func (h *FileHandler) List(c echo.Context) error {
 		fileResponses[i] = toFileResponse(&file, todoID)
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"files": fileResponses,
-	})
+	return c.JSON(http.StatusOK, fileResponses)
 }
 
 // Upload handles file upload
@@ -136,9 +134,7 @@ func (h *FileHandler) Upload(c echo.Context) error {
 		return err
 	}
 
-	return response.Created(c, map[string]interface{}{
-		"file": toFileResponse(uploadedFile, todoID),
-	}, "ファイルをアップロードしました")
+	return response.Created(c, toFileResponse(uploadedFile, todoID))
 }
 
 // Download handles file download

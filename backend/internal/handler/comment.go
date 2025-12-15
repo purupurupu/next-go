@@ -112,9 +112,7 @@ func (h *CommentHandler) List(c echo.Context) error {
 		commentResponses[i] = toCommentResponse(&comment, currentUser.ID)
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"comments": commentResponses,
-	})
+	return c.JSON(http.StatusOK, commentResponses)
 }
 
 // Create creates a new comment for a todo
@@ -160,7 +158,7 @@ func (h *CommentHandler) Create(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "CommentHandler.Create: failed to reload comment")
 	}
 
-	return response.Created(c, toCommentResponse(comment, currentUser.ID), "Comment created successfully")
+	return response.Created(c, toCommentResponse(comment, currentUser.ID))
 }
 
 // Update updates an existing comment
@@ -224,7 +222,7 @@ func (h *CommentHandler) Update(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "CommentHandler.Update: failed to update comment")
 	}
 
-	return response.Success(c, toCommentResponse(comment, currentUser.ID))
+	return response.OK(c, toCommentResponse(comment, currentUser.ID))
 }
 
 // Delete soft-deletes a comment

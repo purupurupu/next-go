@@ -149,19 +149,15 @@ class TodoApiClient extends ApiClient {
 
   // File operations
   async getFiles(todoId: number): Promise<TodoFile[]> {
-    const response = await this.get<{ files: TodoFile[] }>(`/todos/${todoId}/files`);
-    return response.files || [];
+    const response = await this.get<TodoFile[]>(`/todos/${todoId}/files`);
+    return Array.isArray(response) ? response : [];
   }
 
   async uploadTodoFile(todoId: number, file: File): Promise<TodoFile> {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await super.uploadFile<{ file: TodoFile }>(
-      `/todos/${todoId}/files`,
-      formData
-    );
-    return response.file;
+    return super.uploadFile<TodoFile>(`/todos/${todoId}/files`, formData);
   }
 
   async deleteFile(todoId: number, fileId: number): Promise<void> {

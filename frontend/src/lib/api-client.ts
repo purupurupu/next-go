@@ -76,22 +76,7 @@ class HttpClient {
         return null as T;
       }
 
-      const json = await response.json();
-
-      // Handle v1 API response format
-      if (json && typeof json === "object" && "data" in json) {
-        // For search endpoints, preserve meta and suggestions
-        if (json.meta || json.suggestions) {
-          return {
-            data: json.data,
-            meta: json.meta,
-            suggestions: json.suggestions,
-          } as T;
-        }
-        return json.data as T;
-      }
-
-      return json as T;
+      return await response.json() as T;
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
@@ -168,22 +153,7 @@ class HttpClient {
         );
       }
 
-      const json = await response.json();
-
-      // Handle v1 API response format
-      if (json && typeof json === "object" && "data" in json) {
-        // For search endpoints, preserve meta and suggestions
-        if (json.meta || json.suggestions) {
-          return {
-            data: json.data,
-            meta: json.meta,
-            suggestions: json.suggestions,
-          } as T;
-        }
-        return json.data as T;
-      }
-
-      return json as T;
+      return await response.json() as T;
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;

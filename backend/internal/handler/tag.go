@@ -77,9 +77,7 @@ func (h *TagHandler) List(c echo.Context) error {
 		tagResponses[i] = toTagResponse(&tag)
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"tags": tagResponses,
-	})
+	return c.JSON(http.StatusOK, tagResponses)
 }
 
 // Show retrieves a specific tag by ID
@@ -138,7 +136,7 @@ func (h *TagHandler) Create(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TagHandler.Create: failed to create tag")
 	}
 
-	return response.Created(c, toTagResponse(tag), "Tag created successfully")
+	return response.Created(c, toTagResponse(tag))
 }
 
 // Update updates an existing tag
@@ -187,7 +185,7 @@ func (h *TagHandler) Update(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TagHandler.Update: failed to update tag")
 	}
 
-	return response.Success(c, toTagResponse(tag))
+	return response.OK(c, toTagResponse(tag))
 }
 
 // Delete removes a tag

@@ -208,7 +208,7 @@ func (h *TodoHandler) Create(c echo.Context) error {
 		return err
 	}
 
-	return response.Created(c, toTodoResponse(todo), "Todo created successfully")
+	return response.Created(c, toTodoResponse(todo))
 }
 
 // Update updates an existing todo
@@ -246,7 +246,7 @@ func (h *TodoHandler) Update(c echo.Context) error {
 		return err
 	}
 
-	return response.Success(c, toTodoResponse(todo))
+	return response.OK(c, toTodoResponse(todo))
 }
 
 // Delete removes a todo
@@ -298,7 +298,7 @@ func (h *TodoHandler) UpdateOrder(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TodoHandler.UpdateOrder: failed to update order")
 	}
 
-	return response.Message(c, "Order updated successfully")
+	return response.NoContent(c)
 }
 
 // SearchMetaResponse represents the meta information in search response
