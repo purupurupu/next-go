@@ -132,7 +132,7 @@ class TodoApiClient extends ApiClient {
 
       return this.uploadFile<Todo>(`/todos/${id}`, formData, "PATCH");
     }
-    return this.put<Todo>(`/todos/${id}`, { todo: data });
+    return this.patch<Todo>(`/todos/${id}`, { todo: data });
   }
 
   async deleteTodo(id: number): Promise<void> {
