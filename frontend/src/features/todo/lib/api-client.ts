@@ -1,6 +1,8 @@
 import { ApiClient, ApiError } from "@/lib/api-client";
+import { API_BASE_URL } from "@/lib/constants";
 import type {
   Todo,
+  TodoFile,
   CreateTodoData,
   UpdateTodoData,
   UpdateOrderData,
@@ -146,13 +148,29 @@ class TodoApiClient extends ApiClient {
   }
 
   // File operations
-  async deleteTodoFile(todoId: number, fileId: string | number): Promise<Todo> {
-    return this.delete<Todo>(`/todos/${todoId}/files/${fileId}`);
+  async getFiles(todoId: number): Promise<TodoFile[]> {
+    const response = await this.get<{ files: TodoFile[] }>(`/todos/${todoId}/files`);
+    return response.files || [];
   }
 
-  async downloadFile(url: string): Promise<Blob> {
-    // For file downloads, we need to handle the response differently
+  async uploadTodoFile(todoId: number, file: File): Promise<TodoFile> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await super.uploadFile<{ file: TodoFile }>(
+      `/todos/${todoId}/files`,
+      formData
+    );
+    return response.file;
+  }
+
+  async deleteFile(todoId: number, fileId: number): Promise<void> {
+    return this.delete<void>(`/todos/${todoId}/files/${fileId}`);
+  }
+
+  async downloadFile(todoId: number, fileId: number): Promise<Blob> {
     const token = localStorage.getItem("authToken");
+    const url = `${API_BASE_URL}/api/v1/todos/${todoId}/files/${fileId}`;
 
     const response = await fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -167,6 +185,30 @@ class TodoApiClient extends ApiClient {
     }
 
     return response.blob();
+  }
+
+  async downloadThumbnail(todoId: number, fileId: number, size: "thumb" | "medium"): Promise<Blob> {
+    const token = localStorage.getItem("authToken");
+    const url = `${API_BASE_URL}/api/v1/todos/${todoId}/files/${fileId}/${size}`;
+
+    const response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new ApiError(
+        `HTTP ${response.status}: ${response.statusText}`,
+        response.status,
+      );
+    }
+
+    return response.blob();
+  }
+
+  // Legacy support - deprecated
+  async deleteTodoFile(todoId: number, fileId: string | number): Promise<void> {
+    return this.delete<void>(`/todos/${todoId}/files/${fileId}`);
   }
 }
 
