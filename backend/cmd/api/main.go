@@ -21,6 +21,7 @@ import (
 	"todo-api/internal/model"
 	"todo-api/internal/repository"
 	"todo-api/internal/service"
+	"todo-api/internal/storage"
 	"todo-api/internal/validator"
 	"todo-api/pkg/database"
 )
@@ -59,6 +60,7 @@ func main() {
 			&model.TodoTag{},
 			&model.Comment{},
 			&model.TodoHistory{},
+			&model.File{},
 		); err != nil {
 			log.Fatal().Err(err).Msg("Failed to auto migrate models")
 		}
@@ -97,6 +99,12 @@ func main() {
 		})
 	})
 
+	// Initialize S3 storage
+	s3Storage, err := storage.NewS3Storage(cfg.GetS3Config())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize S3 storage")
+	}
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	denylistRepo := repository.NewJwtDenylistRepository(db)
@@ -105,9 +113,12 @@ func main() {
 	tagRepo := repository.NewTagRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
 	historyRepo := repository.NewTodoHistoryRepository(db)
+	fileRepo := repository.NewFileRepository(db)
 
 	// Initialize services
 	todoService := service.NewTodoService(todoRepo, categoryRepo, historyRepo)
+	thumbnailService := service.NewThumbnailService(s3Storage)
+	fileService := service.NewFileService(fileRepo, todoRepo, s3Storage, thumbnailService)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, cfg)
@@ -116,6 +127,7 @@ func main() {
 	tagHandler := handler.NewTagHandler(tagRepo)
 	commentHandler := handler.NewCommentHandler(commentRepo, todoRepo)
 	historyHandler := handler.NewTodoHistoryHandler(historyRepo, todoRepo)
+	fileHandler := handler.NewFileHandler(fileService)
 
 	// Auth routes (public)
 	auth := e.Group("/auth")
@@ -157,6 +169,14 @@ func main() {
 
 	// History routes (nested under todos)
 	api.GET("/todos/:todo_id/histories", historyHandler.List)
+
+	// File routes (nested under todos)
+	api.GET("/todos/:todo_id/files", fileHandler.List)
+	api.POST("/todos/:todo_id/files", fileHandler.Upload)
+	api.GET("/todos/:todo_id/files/:file_id", fileHandler.Download)
+	api.GET("/todos/:todo_id/files/:file_id/thumb", fileHandler.DownloadThumb)
+	api.GET("/todos/:todo_id/files/:file_id/medium", fileHandler.DownloadMedium)
+	api.DELETE("/todos/:todo_id/files/:file_id", fileHandler.Delete)
 
 	// Log startup information
 	log.Info().
