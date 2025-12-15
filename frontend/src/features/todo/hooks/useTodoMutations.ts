@@ -177,12 +177,7 @@ export function useTodoMutations({
       }));
 
       // Call the API to delete the file
-      const updatedTodo = await todoApiClient.deleteTodoFile(todoId, fileId);
-
-      // Update with the actual response from server
-      setAllTodos((prev) => prev.map((todo) =>
-        todo.id === todoId ? updatedTodo : todo,
-      ));
+      await todoApiClient.deleteTodoFile(todoId, fileId);
 
       toast.success("ファイルを削除しました");
     } catch (error) {

@@ -29,16 +29,12 @@ func NewCommentHandler(commentRepo *repository.CommentRepository, todoRepo *repo
 
 // CreateCommentRequest represents the request body for creating a comment
 type CreateCommentRequest struct {
-	Comment struct {
-		Content string `json:"content" validate:"required,min=1,max=1000"`
-	} `json:"comment" validate:"required"`
+	Content string `json:"content" validate:"required,min=1,max=1000"`
 }
 
 // UpdateCommentRequest represents the request body for updating a comment
 type UpdateCommentRequest struct {
-	Comment struct {
-		Content string `json:"content" validate:"required,min=1,max=1000"`
-	} `json:"comment" validate:"required"`
+	Content string `json:"content" validate:"required,min=1,max=1000"`
 }
 
 // CommentResponse represents a comment in API responses
@@ -148,7 +144,7 @@ func (h *CommentHandler) Create(c echo.Context) error {
 	}
 
 	comment := &model.Comment{
-		Content:         req.Comment.Content,
+		Content:         req.Content,
 		UserID:          currentUser.ID,
 		CommentableType: model.CommentableTypeTodo,
 		CommentableID:   todoID,
@@ -224,7 +220,7 @@ func (h *CommentHandler) Update(c echo.Context) error {
 		return err
 	}
 
-	comment.Content = req.Comment.Content
+	comment.Content = req.Content
 
 	if err := h.commentRepo.Update(comment); err != nil {
 		return errors.InternalErrorWithLog(err, "CommentHandler.Update: failed to update comment")

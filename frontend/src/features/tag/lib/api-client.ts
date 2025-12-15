@@ -13,11 +13,11 @@ export class TagApiClient extends ApiClient {
   }
 
   async createTag(data: CreateTagData): Promise<Tag> {
-    return this.post<Tag>("/tags", { tag: data });
+    return this.post<Tag>("/tags", data);
   }
 
   async updateTag(id: number, data: UpdateTagData): Promise<Tag> {
-    return this.patch<Tag>(`/tags/${id}`, { tag: data });
+    return this.patch<Tag>(`/tags/${id}`, data);
   }
 
   async deleteTag(id: number): Promise<void> {
