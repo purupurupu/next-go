@@ -62,23 +62,24 @@ services:
 
   rustfs:
     image: rustfs/rustfs:latest
+    user: root
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - rustfs_data:/data
+      - ./data/rustfs:/data
+      - ./data/rustfs-logs:/logs
     environment:
-      - RUSTFS_ROOT_USER=${RUSTFS_ACCESS_KEY:-rustfs-dev-access}
-      - RUSTFS_ROOT_PASSWORD=${RUSTFS_SECRET_KEY:-rustfs-dev-secret-key}
-    command: server /data --console-address ":9001"
+      - RUSTFS_ACCESS_KEY=${S3_ACCESS_KEY:-rustfs-dev-access}
+      - RUSTFS_SECRET_KEY=${S3_SECRET_KEY:-rustfs-dev-secret-key}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
 volumes:
   postgres_data:
   redis_data:
   go_cache:
-  rustfs_data:
