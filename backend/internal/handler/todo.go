@@ -37,8 +37,8 @@ type CreateTodoRequest struct {
 		Title       string  `json:"title" validate:"required,min=1,max=255"`
 		Description *string `json:"description" validate:"omitempty,max=10000"`
 		CategoryID  *int64  `json:"category_id"`
-		Priority    *int    `json:"priority" validate:"omitempty,min=0,max=2"`
-		Status      *int    `json:"status" validate:"omitempty,min=0,max=2"`
+		Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high"`
+		Status      *string `json:"status" validate:"omitempty,oneof=pending in_progress completed"`
 		DueDate     *string `json:"due_date" validate:"omitempty"`
 		Position    *int    `json:"position"`
 	} `json:"todo" validate:"required"`
@@ -51,8 +51,8 @@ type UpdateTodoRequest struct {
 		Description *string `json:"description" validate:"omitempty,max=10000"`
 		CategoryID  *int64  `json:"category_id"`
 		Completed   *bool   `json:"completed"`
-		Priority    *int    `json:"priority" validate:"omitempty,min=0,max=2"`
-		Status      *int    `json:"status" validate:"omitempty,min=0,max=2"`
+		Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high"`
+		Status      *string `json:"status" validate:"omitempty,oneof=pending in_progress completed"`
 		DueDate     *string `json:"due_date"`
 		Position    *int    `json:"position"`
 	} `json:"todo" validate:"required"`
