@@ -17,17 +17,21 @@ export type TodoCategoryRef = Pick<Category, "id" | "name" | "color">;
 // Tag reference (simplified version for todos)
 export type TodoTagRef = Pick<Tag, "id" | "name" | "color">;
 
-// File type (Active Storage format)
+// File type (Go backend format)
 export interface TodoFile {
-  id: string | number;
-  filename: string;
+  id: number;
+  original_name: string;
   content_type: string;
-  byte_size: number;
-  url: string;
-  variants?: {
-    thumb?: string;
-    medium?: string;
-  };
+  file_size: number;
+  file_type: "image" | "document" | "other";
+  download_url: string;
+  thumb_url?: string;
+  medium_url?: string;
+  created_at: string;
+  // Backwards compatibility aliases
+  filename?: string; // alias for original_name
+  byte_size?: number; // alias for file_size
+  url?: string; // alias for download_url
 }
 
 // Main todo entity
