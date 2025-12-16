@@ -152,7 +152,7 @@ func TestNoteCreate_Success(t *testing.T) {
 	f := testutil.SetupTestFixture(t)
 	_, token := f.CreateUser("test@example.com")
 
-	body := `{"note":{"title":"My Note","body_md":"# Hello\n\nWorld"}}`
+	body := `{"title":"My Note","body_md":"# Hello\n\nWorld"}`
 	rec, err := f.CallAuthNote(token, http.MethodPost, "/api/v1/notes", body, f.NoteHandler.Create)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, rec.Code)
@@ -167,7 +167,7 @@ func TestNoteCreate_Empty(t *testing.T) {
 	f := testutil.SetupTestFixture(t)
 	_, token := f.CreateUser("test@example.com")
 
-	body := `{"note":{}}`
+	body := `{}`
 	rec, err := f.CallAuthNote(token, http.MethodPost, "/api/v1/notes", body, f.NoteHandler.Create)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, rec.Code)
@@ -177,7 +177,7 @@ func TestNoteCreate_CreatesInitialRevision(t *testing.T) {
 	f := testutil.SetupTestFixture(t)
 	user, token := f.CreateUser("test@example.com")
 
-	body := `{"note":{"title":"My Note","body_md":"Content"}}`
+	body := `{"title":"My Note","body_md":"Content"}`
 	rec, err := f.CallAuthNote(token, http.MethodPost, "/api/v1/notes", body, f.NoteHandler.Create)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, rec.Code)
@@ -203,7 +203,7 @@ func TestNoteCreate_ValidationError_TitleTooLong(t *testing.T) {
 	for i := range longTitle {
 		longTitle[i] = 'a'
 	}
-	body := `{"note":{"title":"` + string(longTitle) + `"}}`
+	body := `{"title":"` + string(longTitle) + `"}`
 	rec, _ := f.CallAuthNote(token, http.MethodPost, "/api/v1/notes", body, f.NoteHandler.Create)
 	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 }
@@ -256,7 +256,7 @@ func TestNoteUpdate_Success(t *testing.T) {
 
 	note := f.CreateNote(user.ID, "Original", "Body")
 
-	body := `{"note":{"title":"Updated Title"}}`
+	body := `{"title":"Updated Title"}`
 	rec, err := f.CallAuthNote(token, http.MethodPatch, testutil.NotePath(note.ID), body, f.NoteHandler.Update)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -277,7 +277,7 @@ func TestNoteUpdate_BodyMD_CreatesRevision(t *testing.T) {
 	initialCount := len(revisions)
 
 	// Update body
-	body := `{"note":{"body_md":"Updated Body"}}`
+	body := `{"body_md":"Updated Body"}`
 	_, err := f.CallAuthNote(token, http.MethodPatch, testutil.NotePath(note.ID), body, f.NoteHandler.Update)
 	require.NoError(t, err)
 
@@ -297,7 +297,7 @@ func TestNoteUpdate_TitleOnly_NoRevision(t *testing.T) {
 	initialCount := len(revisions)
 
 	// Update title only
-	body := `{"note":{"title":"New Title"}}`
+	body := `{"title":"New Title"}`
 	_, err := f.CallAuthNote(token, http.MethodPatch, testutil.NotePath(note.ID), body, f.NoteHandler.Update)
 	require.NoError(t, err)
 
@@ -312,7 +312,7 @@ func TestNoteUpdate_Archive(t *testing.T) {
 
 	note := f.CreateNote(user.ID, "Note", "Body")
 
-	body := `{"note":{"archived":true}}`
+	body := `{"archived":true}`
 	rec, err := f.CallAuthNote(token, http.MethodPatch, testutil.NotePath(note.ID), body, f.NoteHandler.Update)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -329,7 +329,7 @@ func TestNoteUpdate_Pin(t *testing.T) {
 
 	note := f.CreateNote(user.ID, "Note", "Body")
 
-	body := `{"note":{"pinned":true}}`
+	body := `{"pinned":true}`
 	rec, err := f.CallAuthNote(token, http.MethodPatch, testutil.NotePath(note.ID), body, f.NoteHandler.Update)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -343,7 +343,7 @@ func TestNoteUpdate_NotFound(t *testing.T) {
 	f := testutil.SetupTestFixture(t)
 	_, token := f.CreateUser("test@example.com")
 
-	body := `{"note":{"title":"Updated"}}`
+	body := `{"title":"Updated"}`
 	rec, _ := f.CallAuthNote(token, http.MethodPatch, testutil.NotePath(99999), body, f.NoteHandler.Update)
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
@@ -427,7 +427,7 @@ func TestNoteRestoreRevision_Success(t *testing.T) {
 	note := f.CreateNote(user.ID, "Original Title", "Original Body")
 
 	// Update body to create a new revision
-	updateBody := `{"note":{"body_md":"Updated Body"}}`
+	updateBody := `{"body_md":"Updated Body"}`
 	_, err := f.CallAuthNote(token, http.MethodPatch, testutil.NotePath(note.ID), updateBody, f.NoteHandler.Update)
 	require.NoError(t, err)
 
@@ -465,7 +465,7 @@ func TestNote_RevisionLimit_EnforcedAt50(t *testing.T) {
 
 	// Create 55 revisions by updating body
 	for i := 1; i <= 55; i++ {
-		body := `{"note":{"body_md":"Body ` + string(rune('0'+i%10)) + `"}}`
+		body := `{"body_md":"Body ` + string(rune('0'+i%10)) + `"}`
 		_, err := f.CallAuthNote(token, http.MethodPatch, testutil.NotePath(note.ID), body, f.NoteHandler.Update)
 		require.NoError(t, err)
 	}

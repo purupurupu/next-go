@@ -93,11 +93,9 @@ POST /api/v1/notes
 
 ```json
 {
-  "note": {
-    "title": "新しいノート",
-    "body_md": "# 本文\n\nMarkdown で記述",
-    "pinned": false
-  }
+  "title": "新しいノート",
+  "body_md": "# 本文\n\nMarkdown で記述",
+  "pinned": false
 }
 ```
 
@@ -159,13 +157,11 @@ PATCH /api/v1/notes/:id
 
 ```json
 {
-  "note": {
-    "title": "更新されたタイトル",
-    "body_md": "# 更新された本文",
-    "pinned": true,
-    "archived": false,
-    "trashed": false
-  }
+  "title": "更新されたタイトル",
+  "body_md": "# 更新された本文",
+  "pinned": true,
+  "archived": false,
+  "trashed": false
 }
 ```
 

@@ -150,7 +150,7 @@ func (h *TodoHandler) Create(c echo.Context) error {
 
     todo, err := h.todoService.Create(service.CreateTodoInput{
         UserID: currentUser.ID,
-        Title:  req.Todo.Title,
+        Title:  req.Title,
     })
     if err != nil {
         return err
@@ -168,18 +168,16 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 
 const createTodoSchema = z.object({
-  todo: z.object({
-    title: z.string().min(1).max(255),
-    description: z.string().optional(),
-    category_id: z.number().optional(),
-    priority: z.number().min(0).max(2).default(1),
-    status: z.number().min(0).max(2).default(0),
-  })
+  title: z.string().min(1).max(255),
+  description: z.string().optional(),
+  category_id: z.number().optional(),
+  priority: z.number().min(0).max(2).default(1),
+  status: z.number().min(0).max(2).default(0),
 })
 
 todoRoutes.post('/', zValidator('json', createTodoSchema), async (c) => {
   const userId = c.get('userId')
-  const { todo: input } = c.req.valid('json')
+  const input = c.req.valid('json')
 
   const todo = await todoService.create({
     userId,
@@ -262,11 +260,9 @@ export const authMiddleware = async (c: Context, next: Next) => {
 
 ```go
 type CreateTodoRequest struct {
-    Todo struct {
-        Title       string  `json:"title" validate:"required,max=255"`
-        Description *string `json:"description" validate:"omitempty,max=5000"`
-        Priority    *int    `json:"priority" validate:"omitempty,min=0,max=2"`
-    } `json:"todo" validate:"required"`
+    Title       string  `json:"title" validate:"required,max=255"`
+    Description *string `json:"description" validate:"omitempty,max=5000"`
+    Priority    *int    `json:"priority" validate:"omitempty,min=0,max=2"`
 }
 ```
 
@@ -277,14 +273,12 @@ type CreateTodoRequest struct {
 import { z } from 'zod'
 
 export const createTodoSchema = z.object({
-  todo: z.object({
-    title: z.string().min(1).max(255),
-    description: z.string().max(5000).optional(),
-    priority: z.number().min(0).max(2).optional(),
-    status: z.number().min(0).max(2).optional(),
-    category_id: z.number().positive().optional(),
-    due_date: z.string().datetime().optional(),
-  })
+  title: z.string().min(1).max(255),
+  description: z.string().max(5000).optional(),
+  priority: z.number().min(0).max(2).optional(),
+  status: z.number().min(0).max(2).optional(),
+  category_id: z.number().positive().optional(),
+  due_date: z.string().datetime().optional(),
 })
 
 export type CreateTodoInput = z.infer<typeof createTodoSchema>

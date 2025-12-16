@@ -36,22 +36,18 @@ func NewNoteHandler(
 
 // CreateNoteRequest represents the request body for creating a note
 type CreateNoteRequest struct {
-	Note struct {
-		Title  *string `json:"title" validate:"omitempty,max=150"`
-		BodyMD *string `json:"body_md" validate:"omitempty,max=100000"`
-		Pinned *bool   `json:"pinned"`
-	} `json:"note" validate:"required"`
+	Title  *string `json:"title" validate:"omitempty,max=150"`
+	BodyMD *string `json:"body_md" validate:"omitempty,max=100000"`
+	Pinned *bool   `json:"pinned"`
 }
 
 // UpdateNoteRequest represents the request body for updating a note
 type UpdateNoteRequest struct {
-	Note struct {
-		Title    *string `json:"title" validate:"omitempty,max=150"`
-		BodyMD   *string `json:"body_md" validate:"omitempty,max=100000"`
-		Pinned   *bool   `json:"pinned"`
-		Archived *bool   `json:"archived"`
-		Trashed  *bool   `json:"trashed"`
-	} `json:"note" validate:"required"`
+	Title    *string `json:"title" validate:"omitempty,max=150"`
+	BodyMD   *string `json:"body_md" validate:"omitempty,max=100000"`
+	Pinned   *bool   `json:"pinned"`
+	Archived *bool   `json:"archived"`
+	Trashed  *bool   `json:"trashed"`
 }
 
 // NoteResponse represents a note in API responses
@@ -214,9 +210,9 @@ func (h *NoteHandler) Create(c echo.Context) error {
 
 	note, err := h.noteService.Create(service.CreateNoteInput{
 		UserID: currentUser.ID,
-		Title:  req.Note.Title,
-		BodyMD: req.Note.BodyMD,
-		Pinned: req.Note.Pinned,
+		Title:  req.Title,
+		BodyMD: req.BodyMD,
+		Pinned: req.Pinned,
 	})
 	if err != nil {
 		return err
@@ -325,11 +321,11 @@ func (h *NoteHandler) Update(c echo.Context) error {
 	}
 
 	note, err := h.noteService.Update(noteID, currentUser.ID, service.UpdateNoteInput{
-		Title:    req.Note.Title,
-		BodyMD:   req.Note.BodyMD,
-		Pinned:   req.Note.Pinned,
-		Archived: req.Note.Archived,
-		Trashed:  req.Note.Trashed,
+		Title:    req.Title,
+		BodyMD:   req.BodyMD,
+		Pinned:   req.Pinned,
+		Archived: req.Archived,
+		Trashed:  req.Trashed,
 	})
 	if err != nil {
 		return err
