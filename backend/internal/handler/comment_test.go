@@ -28,8 +28,7 @@ func TestCommentList_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	comments := response["comments"].([]interface{})
+	comments := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, comments, 2)
 }
 
@@ -44,8 +43,7 @@ func TestCommentList_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	comments := response["comments"].([]interface{})
+	comments := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, comments, 0)
 }
 
@@ -83,8 +81,7 @@ func TestCommentList_ExcludesSoftDeleted(t *testing.T) {
 	rec, err := f.CallAuth(token, http.MethodGet, testutil.TodoCommentsPath(todo.ID), "", f.CommentHandler.List)
 	require.NoError(t, err)
 
-	response := testutil.JSONResponse(t, rec)
-	comments := response["comments"].([]interface{})
+	comments := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, comments, 1)
 }
 
@@ -315,8 +312,7 @@ func TestCommentEditable_Within15Minutes(t *testing.T) {
 	rec, err := f.CallAuth(token, http.MethodGet, testutil.TodoCommentsPath(todo.ID), "", f.CommentHandler.List)
 	require.NoError(t, err)
 
-	response := testutil.JSONResponse(t, rec)
-	comments := response["comments"].([]interface{})
+	comments := testutil.JSONArrayResponse(t, rec)
 	comment := comments[0].(map[string]interface{})
 
 	assert.True(t, comment["editable"].(bool))
@@ -335,8 +331,7 @@ func TestCommentEditable_After15Minutes(t *testing.T) {
 	rec, err := f.CallAuth(token, http.MethodGet, testutil.TodoCommentsPath(todo.ID), "", f.CommentHandler.List)
 	require.NoError(t, err)
 
-	response := testutil.JSONResponse(t, rec)
-	comments := response["comments"].([]interface{})
+	comments := testutil.JSONArrayResponse(t, rec)
 	comment := comments[0].(map[string]interface{})
 
 	assert.False(t, comment["editable"].(bool))
@@ -356,8 +351,7 @@ func TestCommentEditable_OtherUserAlwaysFalse(t *testing.T) {
 	rec, err := f.CallAuth(token1, http.MethodGet, testutil.TodoCommentsPath(todo.ID), "", f.CommentHandler.List)
 	require.NoError(t, err)
 
-	response := testutil.JSONResponse(t, rec)
-	comments := response["comments"].([]interface{})
+	comments := testutil.JSONArrayResponse(t, rec)
 	comment := comments[0].(map[string]interface{})
 
 	// Even recent comment by other user should not be editable

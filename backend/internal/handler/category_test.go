@@ -25,8 +25,7 @@ func TestCategoryList_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	categories := testutil.ExtractCategories(response)
+	categories := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, categories, 2)
 
 	// Should be sorted by name (personal < work)
@@ -45,8 +44,7 @@ func TestCategoryList_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	categories := testutil.ExtractCategories(response)
+	categories := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, categories, 0)
 }
 
@@ -63,8 +61,7 @@ func TestCategoryList_UserScope(t *testing.T) {
 	rec, err := f.CallAuthCategory(token1, http.MethodGet, "/api/v1/categories", "", f.CategoryHandler.List)
 	require.NoError(t, err)
 
-	response := testutil.JSONResponse(t, rec)
-	categories := testutil.ExtractCategories(response)
+	categories := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, categories, 1)
 	assert.Equal(t, "user1 category", testutil.CategoryAt(categories, 0)["name"])
 }
