@@ -90,14 +90,37 @@ type FileRepositoryInterface interface {
 	ExistsByID(id int64) (bool, error)
 }
 
+// NoteRepositoryInterface defines the contract for note repository operations
+type NoteRepositoryInterface interface {
+	FindByID(id, userID int64) (*model.Note, error)
+	FindByIDIncludingTrashed(id, userID int64) (*model.Note, error)
+	Search(input NoteSearchInput) ([]model.Note, int64, error)
+	Create(note *model.Note) error
+	Update(note *model.Note) error
+	SoftDelete(id, userID int64) error
+	HardDelete(id, userID int64) error
+	ExistsByID(id, userID int64) (bool, error)
+}
+
+// NoteRevisionRepositoryInterface defines the contract for note revision repository operations
+type NoteRevisionRepositoryInterface interface {
+	Create(revision *model.NoteRevision) error
+	FindByNoteID(noteID int64, page, perPage int) ([]model.NoteRevision, int64, error)
+	FindByID(id, noteID int64) (*model.NoteRevision, error)
+	CountByNoteID(noteID int64) (int64, error)
+	DeleteOldestByNoteID(noteID int64, keepCount int) error
+}
+
 // Ensure concrete types implement interfaces
 var (
-	_ UserRepositoryInterface        = (*UserRepository)(nil)
-	_ TodoRepositoryInterface        = (*TodoRepository)(nil)
-	_ JwtDenylistRepositoryInterface = (*JwtDenylistRepository)(nil)
-	_ CategoryRepositoryInterface    = (*CategoryRepository)(nil)
-	_ TagRepositoryInterface         = (*TagRepository)(nil)
-	_ CommentRepositoryInterface     = (*CommentRepository)(nil)
-	_ TodoHistoryRepositoryInterface = (*TodoHistoryRepository)(nil)
-	_ FileRepositoryInterface        = (*FileRepository)(nil)
+	_ UserRepositoryInterface            = (*UserRepository)(nil)
+	_ TodoRepositoryInterface            = (*TodoRepository)(nil)
+	_ JwtDenylistRepositoryInterface     = (*JwtDenylistRepository)(nil)
+	_ CategoryRepositoryInterface        = (*CategoryRepository)(nil)
+	_ TagRepositoryInterface             = (*TagRepository)(nil)
+	_ CommentRepositoryInterface         = (*CommentRepository)(nil)
+	_ TodoHistoryRepositoryInterface     = (*TodoHistoryRepository)(nil)
+	_ FileRepositoryInterface            = (*FileRepository)(nil)
+	_ NoteRepositoryInterface            = (*NoteRepository)(nil)
+	_ NoteRevisionRepositoryInterface    = (*NoteRevisionRepository)(nil)
 )
