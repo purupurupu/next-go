@@ -96,42 +96,11 @@ class TodoApiClient extends ApiClient {
     };
   }
 
-  async createTodo(data: CreateTodoData, files?: File[]): Promise<Todo> {
-    if (files && files.length > 0) {
-      const formData = new FormData();
-      formData.append("todo[title]", data.title);
-      if (data.due_date) formData.append("todo[due_date]", data.due_date);
-      if (data.priority) formData.append("todo[priority]", data.priority);
-      if (data.status) formData.append("todo[status]", data.status);
-      if (data.description) formData.append("todo[description]", data.description);
-      if (data.category_id) formData.append("todo[category_id]", data.category_id.toString());
-      if (data.tag_ids) {
-        data.tag_ids.forEach((id) => formData.append("todo[tag_ids][]", id.toString()));
-      }
-      files.forEach((file) => formData.append("todo[files][]", file));
-
-      return this.uploadFile<Todo>("/todos", formData);
-    }
+  async createTodo(data: CreateTodoData): Promise<Todo> {
     return this.post<Todo>("/todos", data);
   }
 
-  async updateTodo(id: number, data: UpdateTodoData, files?: File[]): Promise<Todo> {
-    if (files && files.length > 0) {
-      const formData = new FormData();
-      if (data.title !== undefined) formData.append("todo[title]", data.title);
-      if (data.completed !== undefined) formData.append("todo[completed]", data.completed.toString());
-      if (data.due_date !== undefined) formData.append("todo[due_date]", data.due_date || "");
-      if (data.priority !== undefined) formData.append("todo[priority]", data.priority);
-      if (data.status !== undefined) formData.append("todo[status]", data.status);
-      if (data.description !== undefined) formData.append("todo[description]", data.description || "");
-      if (data.category_id !== undefined) formData.append("todo[category_id]", data.category_id?.toString() || "");
-      if (data.tag_ids !== undefined) {
-        data.tag_ids.forEach((id) => formData.append("todo[tag_ids][]", id.toString()));
-      }
-      files.forEach((file) => formData.append("todo[files][]", file));
-
-      return this.uploadFile<Todo>(`/todos/${id}`, formData, "PATCH");
-    }
+  async updateTodo(id: number, data: UpdateTodoData): Promise<Todo> {
     return this.patch<Todo>(`/todos/${id}`, data);
   }
 

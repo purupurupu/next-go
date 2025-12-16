@@ -61,7 +61,20 @@ export function useTodoMutations({
     setAllTodos((prev) => addOptimisticTodo(prev, optimisticTodo));
 
     try {
-      const createdTodo = await todoApiClient.createTodo(data, files);
+      const createdTodo = await todoApiClient.createTodo(data);
+
+      // Upload files if any
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            await todoApiClient.uploadTodoFile(createdTodo.id, file);
+          } catch (fileError) {
+            console.error("File upload failed:", fileError);
+            toast.error(`ファイル "${file.name}" のアップロードに失敗しました`);
+          }
+        }
+      }
+
       setAllTodos((prev) => updateOptimisticTodo(prev, optimisticTodo.id, createdTodo));
       toast.success("タスクを作成しました");
     } catch (error) {
@@ -86,7 +99,20 @@ export function useTodoMutations({
     setAllTodos((prev) => applyOptimisticUpdate(prev, id, data));
 
     try {
-      const updatedTodo = await todoApiClient.updateTodo(id, data, files);
+      const updatedTodo = await todoApiClient.updateTodo(id, data);
+
+      // Upload files if any
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            await todoApiClient.uploadTodoFile(id, file);
+          } catch (fileError) {
+            console.error("File upload failed:", fileError);
+            toast.error(`ファイル "${file.name}" のアップロードに失敗しました`);
+          }
+        }
+      }
+
       setAllTodos((prev) => prev.map((todo) => todo.id === id ? updatedTodo : todo));
       toast.success("タスクを更新しました");
     } catch (error) {
