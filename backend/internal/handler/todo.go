@@ -33,29 +33,26 @@ func NewTodoHandler(todoService *service.TodoService, todoRepo *repository.TodoR
 
 // CreateTodoRequest represents the request body for creating a todo
 type CreateTodoRequest struct {
-	Todo struct {
-		Title       string  `json:"title" validate:"required,min=1,max=255"`
-		Description *string `json:"description" validate:"omitempty,max=10000"`
-		CategoryID  *int64  `json:"category_id"`
-		Priority    *int    `json:"priority" validate:"omitempty,min=0,max=2"`
-		Status      *int    `json:"status" validate:"omitempty,min=0,max=2"`
-		DueDate     *string `json:"due_date" validate:"omitempty"`
-		Position    *int    `json:"position"`
-	} `json:"todo" validate:"required"`
+	Title       string  `json:"title" validate:"required,min=1,max=255"`
+	Description *string `json:"description" validate:"omitempty,max=10000"`
+	CategoryID  *int64  `json:"category_id"`
+	Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high"`
+	Status      *string `json:"status" validate:"omitempty,oneof=pending in_progress completed"`
+	DueDate     *string `json:"due_date" validate:"omitempty"`
+	Position    *int    `json:"position"`
 }
 
 // UpdateTodoRequest represents the request body for updating a todo
 type UpdateTodoRequest struct {
-	Todo struct {
-		Title       *string `json:"title" validate:"omitempty,min=1,max=255"`
-		Description *string `json:"description" validate:"omitempty,max=10000"`
-		CategoryID  *int64  `json:"category_id"`
-		Completed   *bool   `json:"completed"`
-		Priority    *int    `json:"priority" validate:"omitempty,min=0,max=2"`
-		Status      *int    `json:"status" validate:"omitempty,min=0,max=2"`
-		DueDate     *string `json:"due_date"`
-		Position    *int    `json:"position"`
-	} `json:"todo" validate:"required"`
+	Title       *string  `json:"title" validate:"omitempty,min=1,max=255"`
+	Description *string  `json:"description" validate:"omitempty,max=10000"`
+	CategoryID  *int64   `json:"category_id"`
+	Completed   *bool    `json:"completed"`
+	Priority    *string  `json:"priority" validate:"omitempty,oneof=low medium high"`
+	Status      *string  `json:"status" validate:"omitempty,oneof=pending in_progress completed"`
+	DueDate     *string  `json:"due_date"`
+	Position    *int     `json:"position"`
+	TagIDs      *[]int64 `json:"tag_ids"`
 }
 
 // UpdateOrderRequest represents the request body for updating todo positions
@@ -69,14 +66,13 @@ type UpdateOrderRequest struct {
 // TodoResponse represents a todo in API responses
 type TodoResponse struct {
 	ID          int64            `json:"id"`
-	UserID      int64            `json:"user_id"`
 	CategoryID  *int64           `json:"category_id"`
 	Title       string           `json:"title"`
 	Description *string          `json:"description"`
 	Completed   bool             `json:"completed"`
 	Position    *int             `json:"position"`
-	Priority    int              `json:"priority"`
-	Status      int              `json:"status"`
+	Priority    string           `json:"priority"`
+	Status      string           `json:"status"`
 	DueDate     *string          `json:"due_date"`
 	CreatedAt   string           `json:"created_at"`
 	UpdatedAt   string           `json:"updated_at"`
@@ -102,14 +98,13 @@ type TagSummary struct {
 func toTodoResponse(todo *model.Todo) TodoResponse {
 	resp := TodoResponse{
 		ID:          todo.ID,
-		UserID:      todo.UserID,
 		CategoryID:  todo.CategoryID,
 		Title:       todo.Title,
 		Description: todo.Description,
 		Completed:   todo.Completed,
 		Position:    todo.Position,
-		Priority:    int(todo.Priority),
-		Status:      int(todo.Status),
+		Priority:    todo.Priority.String(),
+		Status:      todo.Status.String(),
 		DueDate:     util.FormatDate(todo.DueDate),
 		CreatedAt:   util.FormatRFC3339(todo.CreatedAt),
 		UpdatedAt:   util.FormatRFC3339(todo.UpdatedAt),
@@ -156,9 +151,7 @@ func (h *TodoHandler) List(c echo.Context) error {
 		todoResponses[i] = toTodoResponse(&todo)
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"todos": todoResponses,
-	})
+	return c.JSON(http.StatusOK, todoResponses)
 }
 
 // Show retrieves a specific todo by ID
@@ -182,9 +175,7 @@ func (h *TodoHandler) Show(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TodoHandler.Show: failed to fetch todo")
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"todo": toTodoResponse(todo),
-	})
+	return c.JSON(http.StatusOK, toTodoResponse(todo))
 }
 
 // Create creates a new todo
@@ -202,21 +193,19 @@ func (h *TodoHandler) Create(c echo.Context) error {
 
 	todo, err := h.todoService.Create(service.CreateInput{
 		UserID:      currentUser.ID,
-		Title:       req.Todo.Title,
-		Description: req.Todo.Description,
-		CategoryID:  req.Todo.CategoryID,
-		Priority:    req.Todo.Priority,
-		Status:      req.Todo.Status,
-		DueDate:     req.Todo.DueDate,
-		Position:    req.Todo.Position,
+		Title:       req.Title,
+		Description: req.Description,
+		CategoryID:  req.CategoryID,
+		Priority:    req.Priority,
+		Status:      req.Status,
+		DueDate:     req.DueDate,
+		Position:    req.Position,
 	})
 	if err != nil {
 		return err
 	}
 
-	return response.Created(c, map[string]any{
-		"todo": toTodoResponse(todo),
-	}, "Todo created successfully")
+	return response.Created(c, toTodoResponse(todo))
 }
 
 // Update updates an existing todo
@@ -238,14 +227,15 @@ func (h *TodoHandler) Update(c echo.Context) error {
 	}
 
 	todo, err := h.todoService.Update(id, currentUser.ID, service.UpdateInput{
-		Title:       req.Todo.Title,
-		Description: req.Todo.Description,
-		CategoryID:  req.Todo.CategoryID,
-		Completed:   req.Todo.Completed,
-		Priority:    req.Todo.Priority,
-		Status:      req.Todo.Status,
-		DueDate:     req.Todo.DueDate,
-		Position:    req.Todo.Position,
+		Title:       req.Title,
+		Description: req.Description,
+		CategoryID:  req.CategoryID,
+		Completed:   req.Completed,
+		Priority:    req.Priority,
+		Status:      req.Status,
+		DueDate:     req.DueDate,
+		Position:    req.Position,
+		TagIDs:      req.TagIDs,
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -254,9 +244,7 @@ func (h *TodoHandler) Update(c echo.Context) error {
 		return err
 	}
 
-	return response.Success(c, map[string]any{
-		"todo": toTodoResponse(todo),
-	})
+	return response.OK(c, toTodoResponse(todo))
 }
 
 // Delete removes a todo
@@ -308,7 +296,7 @@ func (h *TodoHandler) UpdateOrder(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TodoHandler.UpdateOrder: failed to update order")
 	}
 
-	return response.Message(c, "Order updated successfully")
+	return response.NoContent(c)
 }
 
 // SearchMetaResponse represents the meta information in search response

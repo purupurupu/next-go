@@ -61,7 +61,20 @@ export function useTodoMutations({
     setAllTodos((prev) => addOptimisticTodo(prev, optimisticTodo));
 
     try {
-      const createdTodo = await todoApiClient.createTodo(data, files);
+      const createdTodo = await todoApiClient.createTodo(data);
+
+      // Upload files if any
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            await todoApiClient.uploadTodoFile(createdTodo.id, file);
+          } catch (fileError) {
+            console.error("File upload failed:", fileError);
+            toast.error(`ファイル "${file.name}" のアップロードに失敗しました`);
+          }
+        }
+      }
+
       setAllTodos((prev) => updateOptimisticTodo(prev, optimisticTodo.id, createdTodo));
       toast.success("タスクを作成しました");
     } catch (error) {
@@ -86,7 +99,20 @@ export function useTodoMutations({
     setAllTodos((prev) => applyOptimisticUpdate(prev, id, data));
 
     try {
-      const updatedTodo = await todoApiClient.updateTodo(id, data, files);
+      const updatedTodo = await todoApiClient.updateTodo(id, data);
+
+      // Upload files if any
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            await todoApiClient.uploadTodoFile(id, file);
+          } catch (fileError) {
+            console.error("File upload failed:", fileError);
+            toast.error(`ファイル "${file.name}" のアップロードに失敗しました`);
+          }
+        }
+      }
+
       setAllTodos((prev) => prev.map((todo) => todo.id === id ? updatedTodo : todo));
       toast.success("タスクを更新しました");
     } catch (error) {
@@ -161,34 +187,11 @@ export function useTodoMutations({
   const deleteTodoFile = useCallback(async (todoId: number, fileId: string | number) => {
     setError(null);
 
-    // Store original todos for rollback
-    const originalTodos = allTodos;
-
     try {
-      // Optimistic update: remove file from the todo
-      setAllTodos((prev) => prev.map((todo) => {
-        if (todo.id === todoId) {
-          return {
-            ...todo,
-            files: todo.files.filter((f) => f.id !== fileId),
-          };
-        }
-        return todo;
-      }));
-
       // Call the API to delete the file
-      const updatedTodo = await todoApiClient.deleteTodoFile(todoId, fileId);
-
-      // Update with the actual response from server
-      setAllTodos((prev) => prev.map((todo) =>
-        todo.id === todoId ? updatedTodo : todo,
-      ));
-
+      await todoApiClient.deleteTodoFile(todoId, fileId);
       toast.success("ファイルを削除しました");
     } catch (error) {
-      // Revert optimistic update on error
-      setAllTodos(originalTodos);
-
       const errorMessage = error instanceof ApiError
         ? error.message
         : "Failed to delete file";
@@ -197,7 +200,7 @@ export function useTodoMutations({
         description: errorMessage,
       });
     }
-  }, [allTodos, setAllTodos, setError]);
+  }, [setError]);
 
   return {
     createTodo,

@@ -27,24 +27,19 @@ func NewTagHandler(tagRepo *repository.TagRepository) *TagHandler {
 
 // CreateTagRequest represents the request body for creating a tag
 type CreateTagRequest struct {
-	Tag struct {
-		Name  string  `json:"name" validate:"required,notblank,max=30"`
-		Color *string `json:"color" validate:"omitempty,hexcolor"`
-	} `json:"tag" validate:"required"`
+	Name  string  `json:"name" validate:"required,notblank,max=30"`
+	Color *string `json:"color" validate:"omitempty,hexcolor"`
 }
 
 // UpdateTagRequest represents the request body for updating a tag
 type UpdateTagRequest struct {
-	Tag struct {
-		Name  *string `json:"name" validate:"omitempty,notblank,max=30"`
-		Color *string `json:"color" validate:"omitempty,hexcolor"`
-	} `json:"tag" validate:"required"`
+	Name  *string `json:"name" validate:"omitempty,notblank,max=30"`
+	Color *string `json:"color" validate:"omitempty,hexcolor"`
 }
 
 // TagResponse represents a tag in API responses
 type TagResponse struct {
 	ID        int64   `json:"id"`
-	UserID    int64   `json:"user_id"`
 	Name      string  `json:"name"`
 	Color     *string `json:"color"`
 	CreatedAt string  `json:"created_at"`
@@ -55,7 +50,6 @@ type TagResponse struct {
 func toTagResponse(tag *model.Tag) TagResponse {
 	return TagResponse{
 		ID:        tag.ID,
-		UserID:    tag.UserID,
 		Name:      tag.Name,
 		Color:     tag.Color,
 		CreatedAt: util.FormatRFC3339(tag.CreatedAt),
@@ -81,9 +75,7 @@ func (h *TagHandler) List(c echo.Context) error {
 		tagResponses[i] = toTagResponse(&tag)
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"tags": tagResponses,
-	})
+	return c.JSON(http.StatusOK, tagResponses)
 }
 
 // Show retrieves a specific tag by ID
@@ -107,9 +99,7 @@ func (h *TagHandler) Show(c echo.Context) error {
 		return errors.InternalErrorWithLog(err, "TagHandler.Show: failed to fetch tag")
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"tag": toTagResponse(tag),
-	})
+	return c.JSON(http.StatusOK, toTagResponse(tag))
 }
 
 // Create creates a new tag
@@ -126,7 +116,7 @@ func (h *TagHandler) Create(c echo.Context) error {
 	}
 
 	// Check for duplicate name (names are normalized to lowercase in BeforeSave)
-	exists, err := h.tagRepo.ExistsByName(req.Tag.Name, currentUser.ID, nil)
+	exists, err := h.tagRepo.ExistsByName(req.Name, currentUser.ID, nil)
 	if err != nil {
 		return errors.InternalErrorWithLog(err, "TagHandler.Create: failed to check duplicate name")
 	}
@@ -136,17 +126,15 @@ func (h *TagHandler) Create(c echo.Context) error {
 
 	tag := &model.Tag{
 		UserID: currentUser.ID,
-		Name:   req.Tag.Name, // BeforeSave will normalize to lowercase
-		Color:  req.Tag.Color,
+		Name:   req.Name, // BeforeSave will normalize to lowercase
+		Color:  req.Color,
 	}
 
 	if err := h.tagRepo.Create(tag); err != nil {
 		return errors.InternalErrorWithLog(err, "TagHandler.Create: failed to create tag")
 	}
 
-	return response.Created(c, map[string]any{
-		"tag": toTagResponse(tag),
-	}, "Tag created successfully")
+	return response.Created(c, toTagResponse(tag))
 }
 
 // Update updates an existing tag
@@ -176,28 +164,26 @@ func (h *TagHandler) Update(c echo.Context) error {
 	}
 
 	// Check for duplicate name if name is being changed
-	if req.Tag.Name != nil {
-		exists, err := h.tagRepo.ExistsByName(*req.Tag.Name, currentUser.ID, &id)
+	if req.Name != nil {
+		exists, err := h.tagRepo.ExistsByName(*req.Name, currentUser.ID, &id)
 		if err != nil {
 			return errors.InternalErrorWithLog(err, "TagHandler.Update: failed to check duplicate name")
 		}
 		if exists {
 			return errors.DuplicateResource("Tag", "name")
 		}
-		tag.Name = *req.Tag.Name // BeforeSave will normalize
+		tag.Name = *req.Name // BeforeSave will normalize
 	}
 
-	if req.Tag.Color != nil {
-		tag.Color = req.Tag.Color
+	if req.Color != nil {
+		tag.Color = req.Color
 	}
 
 	if err := h.tagRepo.Update(tag); err != nil {
 		return errors.InternalErrorWithLog(err, "TagHandler.Update: failed to update tag")
 	}
 
-	return response.Success(c, map[string]any{
-		"tag": toTagResponse(tag),
-	})
+	return response.OK(c, toTagResponse(tag))
 }
 
 // Delete removes a tag

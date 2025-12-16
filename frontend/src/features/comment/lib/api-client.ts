@@ -9,11 +9,11 @@ export class CommentApiClient extends ApiClient {
   }
 
   async createComment(todoId: number, data: CreateCommentData): Promise<Comment> {
-    return this.post<Comment>(`/todos/${todoId}/comments`, { comment: data });
+    return this.post<Comment>(`/todos/${todoId}/comments`, data);
   }
 
   async updateComment(todoId: number, commentId: number, data: UpdateCommentData): Promise<Comment> {
-    return this.patch<Comment>(`/todos/${todoId}/comments/${commentId}`, { comment: data });
+    return this.patch<Comment>(`/todos/${todoId}/comments/${commentId}`, data);
   }
 
   async deleteComment(todoId: number, commentId: number): Promise<void> {

@@ -26,8 +26,7 @@ func TestTagList_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	tags := testutil.ExtractTags(response)
+	tags := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, tags, 2)
 
 	// Should be sorted by name (personal < work)
@@ -46,8 +45,7 @@ func TestTagList_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	tags := testutil.ExtractTags(response)
+	tags := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, tags, 0)
 }
 
@@ -64,8 +62,7 @@ func TestTagList_UserScope(t *testing.T) {
 	rec, err := f.CallAuthTag(token1, http.MethodGet, "/api/v1/tags", "", f.TagHandler.List)
 	require.NoError(t, err)
 
-	response := testutil.JSONResponse(t, rec)
-	tags := testutil.ExtractTags(response)
+	tags := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, tags, 1)
 	assert.Equal(t, "user1tag", testutil.TagAt(tags, 0)["name"])
 }

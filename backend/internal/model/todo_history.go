@@ -36,7 +36,7 @@ type TodoHistory struct {
 	CreatedAt time.Time       `gorm:"not null" json:"created_at"`
 
 	// Relations (will be preloaded when needed)
-	Todo *Todo `gorm:"foreignKey:TodoID" json:"-"`
+	Todo *Todo `gorm:"foreignKey:TodoID;constraint:OnDelete:CASCADE" json:"-"`
 	User *User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
 

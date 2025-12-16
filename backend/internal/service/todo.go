@@ -38,8 +38,8 @@ type CreateInput struct {
 	Title       string
 	Description *string
 	CategoryID  *int64
-	Priority    *int
-	Status      *int
+	Priority    *string
+	Status      *string
 	DueDate     *string
 	Position    *int
 }
@@ -50,10 +50,11 @@ type UpdateInput struct {
 	Description *string
 	CategoryID  *int64
 	Completed   *bool
-	Priority    *int
-	Status      *int
+	Priority    *string
+	Status      *string
 	DueDate     *string
 	Position    *int
+	TagIDs      *[]int64
 }
 
 // Create creates a new todo
@@ -127,7 +128,7 @@ func (s *TodoService) Update(todoID, userID int64, input UpdateInput) (*model.To
 
 	// Apply other fields
 	if input.Priority != nil {
-		todo.Priority = model.Priority(*input.Priority)
+		todo.Priority = s.resolvePriority(input.Priority)
 	}
 
 	// Parse and validate due date
@@ -146,6 +147,13 @@ func (s *TodoService) Update(todoID, userID int64, input UpdateInput) (*model.To
 	// Save changes
 	if err := s.todoRepo.Update(todo); err != nil {
 		return nil, errors.InternalErrorWithLog(err, "TodoService.Update: failed to update todo")
+	}
+
+	// Update tags if provided
+	if input.TagIDs != nil {
+		if err := s.todoRepo.ReplaceTags(todoID, *input.TagIDs); err != nil {
+			return nil, errors.InternalErrorWithLog(err, "TodoService.Update: failed to update tags")
+		}
 	}
 
 	// Record history
@@ -267,7 +275,7 @@ func (s *TodoService) syncStatusAndCompleted(todo *model.Todo, input UpdateInput
 	}
 
 	if input.Status != nil {
-		todo.Status = model.Status(*input.Status)
+		todo.Status = s.resolveStatus(input.Status)
 		// Update completed based on status
 		todo.Completed = (todo.Status == model.StatusCompleted)
 	}
@@ -301,19 +309,33 @@ func (s *TodoService) categoryChanged(oldID, newID *int64) bool {
 }
 
 // resolvePriority returns the priority value or default
-func (s *TodoService) resolvePriority(p *int) model.Priority {
-	if p != nil {
-		return model.Priority(*p)
+func (s *TodoService) resolvePriority(p *string) model.Priority {
+	if p == nil {
+		return model.PriorityMedium
 	}
-	return model.PriorityMedium
+	switch *p {
+	case "low":
+		return model.PriorityLow
+	case "high":
+		return model.PriorityHigh
+	default:
+		return model.PriorityMedium
+	}
 }
 
 // resolveStatus returns the status value or default
-func (s *TodoService) resolveStatus(st *int) model.Status {
-	if st != nil {
-		return model.Status(*st)
+func (s *TodoService) resolveStatus(st *string) model.Status {
+	if st == nil {
+		return model.StatusPending
 	}
-	return model.StatusPending
+	switch *st {
+	case "in_progress":
+		return model.StatusInProgress
+	case "completed":
+		return model.StatusCompleted
+	default:
+		return model.StatusPending
+	}
 }
 
 // SearchInput represents input for searching todos

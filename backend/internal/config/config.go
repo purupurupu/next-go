@@ -24,6 +24,36 @@ type Config struct {
 	// CORS settings
 	CORSAllowOrigins string `envconfig:"CORS_ALLOW_ORIGINS" default:"http://localhost:3000"`
 	CORSMaxAge       int    `envconfig:"CORS_MAX_AGE" default:"86400"`
+
+	// S3 storage settings
+	S3Endpoint     string `envconfig:"S3_ENDPOINT" default:"http://localhost:9000"`
+	S3Region       string `envconfig:"S3_REGION" default:"us-east-1"`
+	S3Bucket       string `envconfig:"S3_BUCKET" default:"todo-files"`
+	S3AccessKey    string `envconfig:"S3_ACCESS_KEY" default:"rustfs-dev-access"`
+	S3SecretKey    string `envconfig:"S3_SECRET_KEY" default:"rustfs-dev-secret-key"`
+	S3UsePathStyle bool   `envconfig:"S3_USE_PATH_STYLE" default:"true"`
+}
+
+// S3Config holds S3 storage configuration
+type S3Config struct {
+	Endpoint     string
+	Region       string
+	Bucket       string
+	AccessKey    string
+	SecretKey    string
+	UsePathStyle bool
+}
+
+// GetS3Config returns S3 configuration
+func (c *Config) GetS3Config() *S3Config {
+	return &S3Config{
+		Endpoint:     c.S3Endpoint,
+		Region:       c.S3Region,
+		Bucket:       c.S3Bucket,
+		AccessKey:    c.S3AccessKey,
+		SecretKey:    c.S3SecretKey,
+		UsePathStyle: c.S3UsePathStyle,
+	}
 }
 
 // GetCORSOrigins returns the CORS allowed origins as a slice

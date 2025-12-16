@@ -25,8 +25,7 @@ func TestTodoList_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	todos := testutil.ExtractTodos(response)
+	todos := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, todos, 2)
 }
 
@@ -41,8 +40,7 @@ func TestTodoList_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	todos := testutil.ExtractTodos(response)
+	todos := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, todos, 0)
 }
 
@@ -61,8 +59,7 @@ func TestTodoList_UserScope(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	response := testutil.JSONResponse(t, rec)
-	todos := testutil.ExtractTodos(response)
+	todos := testutil.JSONArrayResponse(t, rec)
 	assert.Len(t, todos, 1)
 
 	firstTodo := testutil.TodoAt(todos, 0)

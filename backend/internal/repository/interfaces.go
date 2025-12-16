@@ -79,6 +79,17 @@ type TodoHistoryRepositoryInterface interface {
 	FindByTodoIDWithUser(todoID int64, page, perPage int) ([]model.TodoHistory, int64, error)
 }
 
+// FileRepositoryInterface defines the contract for file repository operations
+type FileRepositoryInterface interface {
+	FindByID(id int64) (*model.File, error)
+	FindByAttachable(attachableType string, attachableID int64) ([]model.File, error)
+	FindByAttachableWithUser(attachableType string, attachableID int64) ([]model.File, error)
+	Create(file *model.File) error
+	Delete(id int64) error
+	DeleteByAttachable(attachableType string, attachableID int64) error
+	ExistsByID(id int64) (bool, error)
+}
+
 // Ensure concrete types implement interfaces
 var (
 	_ UserRepositoryInterface        = (*UserRepository)(nil)
@@ -88,4 +99,5 @@ var (
 	_ TagRepositoryInterface         = (*TagRepository)(nil)
 	_ CommentRepositoryInterface     = (*CommentRepository)(nil)
 	_ TodoHistoryRepositoryInterface = (*TodoHistoryRepository)(nil)
+	_ FileRepositoryInterface        = (*FileRepository)(nil)
 )

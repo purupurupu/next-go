@@ -16,6 +16,14 @@ func JSONResponse(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
 	return response
 }
 
+// JSONArrayResponse parses the response body as JSON array
+func JSONArrayResponse(t *testing.T, rec *httptest.ResponseRecorder) []any {
+	var response []any
+	err := json.Unmarshal(rec.Body.Bytes(), &response)
+	require.NoError(t, err)
+	return response
+}
+
 // ExtractStatusCode extracts the status code from a standard API response
 func ExtractStatusCode(response map[string]any) int {
 	status, ok := response["status"].(map[string]any)

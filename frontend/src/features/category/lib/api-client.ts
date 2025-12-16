@@ -13,15 +13,11 @@ class CategoryApiClient extends ApiClient {
   }
 
   async createCategory(data: CreateCategoryData): Promise<Category> {
-    return this.post<Category>("/categories", {
-      category: data,
-    });
+    return this.post<Category>("/categories", data);
   }
 
   async updateCategory(id: number, data: UpdateCategoryData): Promise<Category> {
-    return this.patch<Category>(`/categories/${id}`, {
-      category: data,
-    });
+    return this.patch<Category>(`/categories/${id}`, data);
   }
 
   async deleteCategory(id: number): Promise<void> {

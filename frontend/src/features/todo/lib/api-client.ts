@@ -1,6 +1,8 @@
 import { ApiClient, ApiError } from "@/lib/api-client";
+import { API_BASE_URL } from "@/lib/constants";
 import type {
   Todo,
+  TodoFile,
   CreateTodoData,
   UpdateTodoData,
   UpdateOrderData,
@@ -94,43 +96,12 @@ class TodoApiClient extends ApiClient {
     };
   }
 
-  async createTodo(data: CreateTodoData, files?: File[]): Promise<Todo> {
-    if (files && files.length > 0) {
-      const formData = new FormData();
-      formData.append("todo[title]", data.title);
-      if (data.due_date) formData.append("todo[due_date]", data.due_date);
-      if (data.priority) formData.append("todo[priority]", data.priority);
-      if (data.status) formData.append("todo[status]", data.status);
-      if (data.description) formData.append("todo[description]", data.description);
-      if (data.category_id) formData.append("todo[category_id]", data.category_id.toString());
-      if (data.tag_ids) {
-        data.tag_ids.forEach((id) => formData.append("todo[tag_ids][]", id.toString()));
-      }
-      files.forEach((file) => formData.append("todo[files][]", file));
-
-      return this.uploadFile<Todo>("/todos", formData);
-    }
-    return this.post<Todo>("/todos", { todo: data });
+  async createTodo(data: CreateTodoData): Promise<Todo> {
+    return this.post<Todo>("/todos", data);
   }
 
-  async updateTodo(id: number, data: UpdateTodoData, files?: File[]): Promise<Todo> {
-    if (files && files.length > 0) {
-      const formData = new FormData();
-      if (data.title !== undefined) formData.append("todo[title]", data.title);
-      if (data.completed !== undefined) formData.append("todo[completed]", data.completed.toString());
-      if (data.due_date !== undefined) formData.append("todo[due_date]", data.due_date || "");
-      if (data.priority !== undefined) formData.append("todo[priority]", data.priority);
-      if (data.status !== undefined) formData.append("todo[status]", data.status);
-      if (data.description !== undefined) formData.append("todo[description]", data.description || "");
-      if (data.category_id !== undefined) formData.append("todo[category_id]", data.category_id?.toString() || "");
-      if (data.tag_ids !== undefined) {
-        data.tag_ids.forEach((id) => formData.append("todo[tag_ids][]", id.toString()));
-      }
-      files.forEach((file) => formData.append("todo[files][]", file));
-
-      return this.uploadFile<Todo>(`/todos/${id}`, formData, "PATCH");
-    }
-    return this.put<Todo>(`/todos/${id}`, { todo: data });
+  async updateTodo(id: number, data: UpdateTodoData): Promise<Todo> {
+    return this.patch<Todo>(`/todos/${id}`, data);
   }
 
   async deleteTodo(id: number): Promise<void> {
@@ -146,13 +117,25 @@ class TodoApiClient extends ApiClient {
   }
 
   // File operations
-  async deleteTodoFile(todoId: number, fileId: string | number): Promise<Todo> {
-    return this.delete<Todo>(`/todos/${todoId}/files/${fileId}`);
+  async getFiles(todoId: number): Promise<TodoFile[]> {
+    const response = await this.get<TodoFile[]>(`/todos/${todoId}/files`);
+    return Array.isArray(response) ? response : [];
   }
 
-  async downloadFile(url: string): Promise<Blob> {
-    // For file downloads, we need to handle the response differently
+  async uploadTodoFile(todoId: number, file: File): Promise<TodoFile> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return super.uploadFile<TodoFile>(`/todos/${todoId}/files`, formData);
+  }
+
+  async deleteFile(todoId: number, fileId: number): Promise<void> {
+    return this.delete<void>(`/todos/${todoId}/files/${fileId}`);
+  }
+
+  async downloadFile(todoId: number, fileId: number): Promise<Blob> {
     const token = localStorage.getItem("authToken");
+    const url = `${API_BASE_URL}/api/v1/todos/${todoId}/files/${fileId}`;
 
     const response = await fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -167,6 +150,30 @@ class TodoApiClient extends ApiClient {
     }
 
     return response.blob();
+  }
+
+  async downloadThumbnail(todoId: number, fileId: number, size: "thumb" | "medium"): Promise<Blob> {
+    const token = localStorage.getItem("authToken");
+    const url = `${API_BASE_URL}/api/v1/todos/${todoId}/files/${fileId}/${size}`;
+
+    const response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new ApiError(
+        `HTTP ${response.status}: ${response.statusText}`,
+        response.status,
+      );
+    }
+
+    return response.blob();
+  }
+
+  // Legacy support - deprecated
+  async deleteTodoFile(todoId: number, fileId: string | number): Promise<void> {
+    return this.delete<void>(`/todos/${todoId}/files/${fileId}`);
   }
 }
 

@@ -363,41 +363,98 @@
 
 ---
 
-## Phase 6: ファイルアップロード（中優先）
+## Phase 6: ファイルアップロード（中優先） ✅ 完了
 
-### ストレージ設定
-- [ ] ローカルストレージまたはS3設定
-- [ ] アップロードディレクトリ設定
+### インフラ設定
+- [x] `compose.yml` に RustFS (S3互換ストレージ) サービス追加
+- [x] `internal/config/config.go` に S3 設定追加
+  - [x] S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
+  - [x] S3_USE_PATH_STYLE (パススタイルURL対応)
 
-### モデル拡張
-- [ ] Todo.Files関連追加
-- [ ] ファイルメタデータ構造体
+### モデル
+- [x] `internal/model/file.go`
+  - [x] File構造体（ポリモーフィック関連: attachable_type, attachable_id）
+  - [x] FileType enum (image, document, other)
+  - [x] AllowedMimeTypes マップ
+  - [x] MaxFileSize 定数 (10MB)
+  - [x] `IsImage()` - 画像判定
+  - [x] `IsOwnedBy(userID)` - 所有者確認
+  - [x] `GetFileType(contentType)` - MIMEタイプからFileType判定
+
+### Storage
+- [x] `internal/storage/storage.go`
+  - [x] Storage インターフェース定義
+  - [x] Upload, Download, Delete, GetURL, Exists
+- [x] `internal/storage/s3.go`
+  - [x] S3Storage 実装 (aws-sdk-go-v2)
+  - [x] バケット自動作成
+
+### Repository
+- [x] `internal/repository/file.go`
+  - [x] `FindByID(id)` - ID検索
+  - [x] `FindByAttachable(type, id)` - 添付先で一覧取得
+  - [x] `Create(file)` - 作成
+  - [x] `Delete(id)` - 削除
+
+### Service
+- [x] `internal/service/thumbnail.go`
+  - [x] ThumbnailService (github.com/disintegration/imaging)
+  - [x] thumb (300x300) 生成
+  - [x] medium (800x800) 生成
+  - [x] アスペクト比維持
+  - [x] WebP → JPEG 変換対応
+- [x] `internal/service/file.go`
+  - [x] `Upload(ctx, input)` - アップロード処理
+  - [x] `Download(ctx, fileID, todoID, userID)` - ダウンロード
+  - [x] `DownloadThumbnail(ctx, fileID, todoID, userID, size)` - サムネイル取得
+  - [x] `Delete(ctx, fileID, todoID, userID)` - 削除
+  - [x] `ListByTodo(ctx, todoID, userID)` - 一覧取得
 
 ### Handler
-- [ ] `POST /api/v1/todos/:id/files` - ファイルアップロード
-- [ ] `DELETE /api/v1/todos/:id/files/:file_id` - ファイル削除
-- [ ] `GET /api/v1/todos/:id/files/:file_id` - ファイルダウンロード
+- [x] `internal/handler/file.go`
+  - [x] `GET /api/v1/todos/:todo_id/files` - 一覧取得
+  - [x] `POST /api/v1/todos/:todo_id/files` - アップロード
+  - [x] `GET /api/v1/todos/:todo_id/files/:file_id` - ダウンロード
+  - [x] `GET /api/v1/todos/:todo_id/files/:file_id/thumb` - サムネイル
+  - [x] `GET /api/v1/todos/:todo_id/files/:file_id/medium` - 中サイズ
+  - [x] `DELETE /api/v1/todos/:todo_id/files/:file_id` - 削除
 
 ### バリデーション
-- [ ] ファイルサイズ: 最大10MB
-- [ ] 許可MIMEタイプ:
-  - [ ] image/jpeg, image/png, image/gif, image/webp
-  - [ ] application/pdf
-  - [ ] text/plain
-  - [ ] application/msword
-  - [ ] application/vnd.openxmlformats-officedocument.wordprocessingml.document
+- [x] ファイルサイズ: 最大10MB
+- [x] 許可MIMEタイプ:
+  - [x] image/jpeg, image/png, image/gif, image/webp
+  - [x] application/pdf, text/plain
+  - [x] MS Office (Word, Excel, PowerPoint)
+
+### フロントエンド実装
+- [x] `types/todo.ts` - TodoFile 型を Go バックエンド形式に更新
+- [x] `lib/api-client.ts` - ファイル操作 API メソッド追加
+  - [x] getFiles, uploadTodoFile, deleteFile
+  - [x] downloadFile, downloadThumbnail
+- [x] `hooks/useFileUpload.ts` - アップロード状態管理フック
+- [x] `components/FileThumbnail.tsx` - サムネイル表示
+- [x] `components/FilePreviewModal.tsx` - 画像プレビュー
+  - [x] ズーム機能 (0.5x - 3x)
+  - [x] 矢印キーナビゲーション
+  - [x] ダウンロードボタン
+- [x] `components/AttachmentList.tsx` - 添付ファイル一覧
+  - [x] 画像グリッド表示
+  - [x] プレビューモーダル統合
 
 ### テスト
 - [ ] アップロードテスト
 - [ ] サイズ制限テスト
 - [ ] MIMEタイプ制限テスト
+- [ ] サムネイル生成テスト
 - [ ] 削除テスト
+- [ ] ユーザースコープテスト
 
 ### フロントエンド統合確認
-- [ ] ファイルアップロードUI
-- [ ] ファイル一覧表示
-- [ ] ファイルダウンロード
-- [ ] ファイル削除
+- [ ] ファイルアップロードUI動作確認
+- [ ] サムネイル表示確認
+- [ ] 画像プレビュー動作確認
+- [ ] ファイルダウンロード確認
+- [ ] ファイル削除確認
 
 ---
 

@@ -236,6 +236,25 @@ func (r *TodoRepository) Search(input SearchInput) ([]model.Todo, int64, error) 
 	return todos, total, nil
 }
 
+// ReplaceTags replaces all tags for a todo
+func (r *TodoRepository) ReplaceTags(todoID int64, tagIDs []int64) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Delete existing tag associations
+		if err := tx.Exec("DELETE FROM todo_tags WHERE todo_id = ?", todoID).Error; err != nil {
+			return err
+		}
+
+		// Insert new tag associations
+		for _, tagID := range tagIDs {
+			if err := tx.Exec("INSERT INTO todo_tags (todo_id, tag_id) VALUES (?, ?)", todoID, tagID).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
 // applySort applies sorting to the query
 func (r *TodoRepository) applySort(query *gorm.DB, sortBy, sortOrder string) *gorm.DB {
 	// Default sort field
