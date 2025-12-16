@@ -2,7 +2,7 @@
 
 ## Overview
 
-Authentication is handled using Devise with JWT tokens. Tokens are returned in the Authorization header and should be included in subsequent requests.
+認証は JWT トークンを使用して処理されます。トークンは Authorization ヘッダーで返され、後続のリクエストに含める必要があります。
 
 ## Endpoints
 
@@ -154,9 +154,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 - No refresh token mechanism currently implemented
 
 ### Token Revocation
-- Tokens are revoked on logout
-- Revoked tokens are stored in `jwt_denylists` table
-- Revoked tokens cannot be used even before expiration
+- ログアウト時にトークンが無効化されます
+- 無効化されたトークンは `jwt_denylists` テーブルに保存されます
+- 無効化されたトークンは有効期限前でも使用できません
 
 ## Error Codes
 

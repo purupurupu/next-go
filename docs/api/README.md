@@ -2,18 +2,26 @@
 
 ## Overview
 
-The Todo application provides a RESTful JSON API built with Rails API-only mode. All endpoints return JSON responses and require JSON request bodies where applicable.
+Todo アプリケーションは Go Echo フレームワークで構築された RESTful JSON API を提供します。すべてのエンドポイントは JSON レスポンスを返し、必要に応じて JSON リクエストボディを受け取ります。
+
+## 技術スタック
+
+- **言語**: Go 1.25
+- **フレームワーク**: Echo v4
+- **ORM**: GORM
+- **認証**: JWT (golang-jwt/jwt v5)
+- **バリデーション**: go-playground/validator v10
 
 ## Base URL
 
 - **Development**: `http://localhost:3001/api/v1`
-- **Production**: Configure in deployment
+- **Production**: デプロイ時に設定
 
-**Note**: The API uses URL-based versioning (`/api/v1`). All endpoints must include the version in the URL path.
+**Note**: API は URL ベースのバージョニングを使用します (`/api/v1`)。
 
 ## Authentication
 
-Most API endpoints require JWT authentication. Include the token in the Authorization header:
+ほとんどの API エンドポイントは JWT 認証が必要です。Authorization ヘッダーにトークンを含めてください:
 
 ```
 Authorization: Bearer <jwt_token>
@@ -32,45 +40,46 @@ Authorization: Bearer <jwt_token>
 ```
 Content-Type: application/json
 X-Request-Id: <unique_request_id>
-X-API-Version: v1
 ```
 
-## Response Format (UNIFIED)
+## Response Format
 
-### Success Response with Data
+### 単一リソース (Create, Show, Update)
+
+オブジェクトを直接返却:
+
 ```json
 {
-  "message": "Todo created successfully",
-  "data": {
-    "id": 1,
-    "title": "Complete project",
-    "completed": false,
-    "position": 0,
-    "due_date": "2024-12-31",
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  }
+  "id": 1,
+  "title": "Complete project",
+  "completed": false,
+  "position": 0,
+  "due_date": "2024-12-31",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
 }
 ```
 
-### Success Response (Message Only)
+### リスト (List, Search)
+
+data と meta でラップ:
+
 ```json
 {
-  "message": "Logged out successfully"
-}
-```
-
-### Resource List Response
-```json
-[
-  {
-    "id": 1,
-    "title": "Complete project",
-    "completed": false,
-    "position": 0,
-    "due_date": "2024-12-31"
+  "data": [
+    {
+      "id": 1,
+      "title": "Complete project",
+      "completed": false
+    }
+  ],
+  "meta": {
+    "total": 100,
+    "current_page": 1,
+    "total_pages": 5,
+    "per_page": 20
   }
-]
+}
 ```
 
 ### Error Response
@@ -82,9 +91,7 @@ X-API-Version: v1
     "details": {
       "resource": "Todo",
       "id": "123"
-    },
-    "request_id": "550e8400-e29b-41d4-a716-446655440000",
-    "timestamp": "2025-01-29T10:00:00Z"
+    }
   }
 }
 ```
@@ -115,51 +122,29 @@ See [Error Handling](./errors.md) for complete error documentation.
 
 ### Resources
 - [Todos API](./todos.md) - Todo CRUD operations, search, and batch updates
-  - Basic CRUD operations (GET, POST, PUT, DELETE)
-  - Advanced search and filtering (GET /api/todos/search)
-  - Bulk position updates for drag-and-drop
-  - File attachments support
 - [Categories API](./categories.md) - Category CRUD operations
-- [Tags API](./tags.md) - Tag CRUD operations for flexible todo organization
-- [Comments API](./comments.md) - Comment functionality for todos
-- [Todo History API](./todo-histories.md) - Change tracking and audit history for todos
+- [Tags API](./tags.md) - Tag CRUD operations
+- [Comments API](./comments.md) - Comment functionality for todos (15分編集制限)
+- [Todo History API](./todo-histories.md) - Change tracking and audit history
+- [File Uploads API](./todos-file-uploads.md) - File attachments (RustFS/S3)
+- [Notes API](./notes.md) - Markdown notes with revision history
 
 ## Pagination
 
-Pagination is implemented for the search endpoint:
+ページネーションは一覧・検索エンドポイントで使用:
+
 ```
-GET /api/todos/search?page=1&per_page=20
+GET /api/v1/todos/search?page=1&per_page=20
+GET /api/v1/notes?page=1&per_page=20
 ```
 
-Pagination parameters:
-- `page` - Page number (default: 1)
-- `per_page` - Items per page (default: 20, max: 100)
-
-Pagination metadata is returned in the response:
-```json
-{
-  "todos": [...],
-  "meta": {
-    "total": 100,
-    "current_page": 1,
-    "total_pages": 5,
-    "per_page": 20
-  }
-}
-```
-
-## Rate Limiting
-
-Currently not implemented. Future versions may include rate limiting headers:
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 99
-X-RateLimit-Reset: 1640995200
-```
+Parameters:
+- `page` - ページ番号 (default: 1)
+- `per_page` - 1ページあたりの件数 (default: 20, max: 100)
 
 ## Versioning
 
-The API uses URL-based versioning. All endpoints must include the version number in the path:
+API は URL ベースのバージョニングを使用:
 
 - **Current Version**: `v1`
 - **URL Format**: `/api/v1/{resource}`
@@ -167,9 +152,9 @@ The API uses URL-based versioning. All endpoints must include the version number
 
 ## CORS
 
-CORS is configured to allow requests from:
+CORS は以下のオリジンを許可:
 - Development: `http://localhost:3000`
-- Production: Configure allowed origins
+- Production: 環境変数で設定
 
 ## Request Examples
 
@@ -183,6 +168,12 @@ curl -X POST http://localhost:3001/auth/sign_in \
 # Get todos
 curl -X GET http://localhost:3001/api/v1/todos \
   -H "Authorization: Bearer <jwt_token>"
+
+# Create note
+curl -X POST http://localhost:3001/api/v1/notes \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <jwt_token>" \
+  -d '{"title":"My Note","body_md":"# Hello"}'
 ```
 
 ### Using JavaScript (Fetch)
@@ -201,23 +192,3 @@ const todos = await fetch('http://localhost:3001/api/v1/todos', {
   headers: { 'Authorization': `Bearer ${token}` }
 }).then(res => res.json());
 ```
-
-## Error Handling Best Practices
-
-1. Always check response status before parsing
-2. Use error codes for programmatic handling
-3. Log request IDs for debugging
-4. Handle authentication errors by redirecting to login
-5. Implement retry logic for 5xx errors only
-6. Display user-friendly messages based on error codes
-
-See [Error Handling](./errors.md) for detailed error handling guidelines.
-
-## Security Considerations
-
-1. Always use HTTPS in production
-2. Store JWT tokens securely (HttpOnly cookies recommended)
-3. Implement token refresh mechanism
-4. Validate all input on both client and server
-5. Use CORS to restrict origins
-6. Implement rate limiting in production

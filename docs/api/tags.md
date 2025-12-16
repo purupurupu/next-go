@@ -26,26 +26,22 @@ Authorization: Bearer <jwt_token>
 
 **Success Response (200 OK):**
 ```json
-{
-  "tags": [
-    {
-      "id": 1,
-      "user_id": 1,
-      "name": "important",
-      "color": "#EF4444",
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    },
-    {
-      "id": 2,
-      "user_id": 1,
-      "name": "work",
-      "color": "#3B82F6",
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
-  ]
-}
+[
+  {
+    "id": 1,
+    "name": "important",
+    "color": "#EF4444",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": 2,
+    "name": "work",
+    "color": "#3B82F6",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
 ```
 
 ### Get Tag
@@ -62,14 +58,11 @@ Authorization: Bearer <jwt_token>
 **Success Response (200 OK):**
 ```json
 {
-  "tag": {
-    "id": 1,
-    "user_id": 1,
-    "name": "work",
-    "color": "#3B82F6",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
+  "id": 1,
+  "name": "work",
+  "color": "#3B82F6",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -98,27 +91,19 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "tag": {
-    "name": "Important",
-    "color": "#EF4444"
-  }
+  "name": "Important",
+  "color": "#EF4444"
 }
 ```
 
 **Success Response (201 Created):**
 ```json
 {
-  "message": "Tag created successfully",
-  "data": {
-    "tag": {
-      "id": 1,
-      "user_id": 1,
-      "name": "important",
-      "color": "#EF4444",
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
-  }
+  "id": 1,
+  "name": "important",
+  "color": "#EF4444",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -165,10 +150,8 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "tag": {
-    "name": "High Priority",
-    "color": "#DC2626"
-  }
+  "name": "High Priority",
+  "color": "#DC2626"
 }
 ```
 
@@ -177,14 +160,11 @@ Both fields are optional for partial updates.
 **Success Response (200 OK):**
 ```json
 {
-  "tag": {
-    "id": 1,
-    "user_id": 1,
-    "name": "high priority",
-    "color": "#DC2626",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T12:00:00Z"
-  }
+  "id": 1,
+  "name": "high priority",
+  "color": "#DC2626",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T12:00:00Z"
 }
 ```
 
@@ -229,7 +209,6 @@ Authorization: Bearer <jwt_token>
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Integer | Read-only | Unique identifier |
-| `user_id` | Integer | Read-only | Owner of the tag |
 | `name` | String | Yes | Tag name (unique per user, stored lowercase) |
 | `color` | String | No | Hex color code (default: "#6B7280") |
 | `created_at` | String (RFC3339) | Read-only | Creation timestamp |

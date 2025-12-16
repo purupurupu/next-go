@@ -26,28 +26,24 @@ Authorization: Bearer <jwt_token>
 
 **Success Response (200 OK):**
 ```json
-{
-  "categories": [
-    {
-      "id": 1,
-      "user_id": 1,
-      "name": "personal",
-      "color": "#3742fa",
-      "todo_count": 3,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    },
-    {
-      "id": 2,
-      "user_id": 1,
-      "name": "work",
-      "color": "#ff4757",
-      "todo_count": 5,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
-  ]
-}
+[
+  {
+    "id": 1,
+    "name": "personal",
+    "color": "#3742fa",
+    "todo_count": 3,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": 2,
+    "name": "work",
+    "color": "#ff4757",
+    "todo_count": 5,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
 ```
 
 ### Get Category
@@ -64,15 +60,12 @@ Authorization: Bearer <jwt_token>
 **Success Response (200 OK):**
 ```json
 {
-  "category": {
-    "id": 1,
-    "user_id": 1,
-    "name": "work",
-    "color": "#ff4757",
-    "todo_count": 5,
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-  }
+  "id": 1,
+  "name": "work",
+  "color": "#ff4757",
+  "todo_count": 5,
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -101,28 +94,20 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "category": {
-    "name": "Work",
-    "color": "#ff4757"
-  }
+  "name": "Work",
+  "color": "#ff4757"
 }
 ```
 
 **Success Response (201 Created):**
 ```json
 {
-  "message": "Category created successfully",
-  "data": {
-    "category": {
-      "id": 1,
-      "user_id": 1,
-      "name": "work",
-      "color": "#ff4757",
-      "todo_count": 0,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
-  }
+  "id": 1,
+  "name": "work",
+  "color": "#ff4757",
+  "todo_count": 0,
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -169,10 +154,8 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "category": {
-    "name": "Personal Projects",
-    "color": "#2ed573"
-  }
+  "name": "Personal Projects",
+  "color": "#2ed573"
 }
 ```
 
@@ -181,15 +164,12 @@ Both fields are optional for partial updates.
 **Success Response (200 OK):**
 ```json
 {
-  "category": {
-    "id": 1,
-    "user_id": 1,
-    "name": "personal projects",
-    "color": "#2ed573",
-    "todo_count": 5,
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T12:00:00Z"
-  }
+  "id": 1,
+  "name": "personal projects",
+  "color": "#2ed573",
+  "todo_count": 5,
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T12:00:00Z"
 }
 ```
 
@@ -234,7 +214,6 @@ Authorization: Bearer <jwt_token>
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `id` | Integer | Read-only | Unique identifier |
-| `user_id` | Integer | Read-only | Owner of the category |
 | `name` | String | Yes | Category name (unique per user, stored lowercase) |
 | `color` | String | Yes | Hex color code (e.g., "#ff4757") |
 | `todo_count` | Integer | Read-only | Number of todos in this category |

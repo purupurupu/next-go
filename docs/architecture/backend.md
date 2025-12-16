@@ -16,8 +16,11 @@
 
 ```
 backend/
-├── cmd/api/
-│   └── main.go                 # エントリポイント、サーバー設定
+├── cmd/
+│   ├── api/
+│   │   └── main.go             # エントリポイント、サーバー設定
+│   └── seed/
+│       └── main.go             # シードデータ投入コマンド
 ├── internal/
 │   ├── config/
 │   │   └── config.go           # 環境変数からの設定読み込み
@@ -28,6 +31,10 @@ backend/
 │   │   ├── todo.go             # Todo CRUD
 │   │   ├── category.go         # Category CRUD
 │   │   ├── tag.go              # Tag CRUD
+│   │   ├── comment.go          # Comment CRUD（15分編集制限）
+│   │   ├── history.go          # Todo履歴取得
+│   │   ├── note.go             # Note CRUD
+│   │   ├── file.go             # ファイルアップロード
 │   │   └── helpers.go          # 共通ヘルパー関数
 │   ├── middleware/
 │   │   └── auth.go             # JWT認証ミドルウェア
@@ -36,6 +43,11 @@ backend/
 │   │   ├── todo.go             # Todoモデル
 │   │   ├── category.go         # Categoryモデル
 │   │   ├── tag.go              # Tagモデル
+│   │   ├── comment.go          # Commentモデル（ソフトデリート）
+│   │   ├── todo_history.go     # TodoHistoryモデル
+│   │   ├── note.go             # Noteモデル
+│   │   ├── note_revision.go    # NoteRevisionモデル
+│   │   ├── todo_file.go        # TodoFileモデル
 │   │   └── jwt_denylist.go     # JWTトークン無効化リスト
 │   ├── repository/
 │   │   ├── interfaces.go       # リポジトリインターフェース定義
@@ -43,12 +55,21 @@ backend/
 │   │   ├── todo.go             # Todoリポジトリ
 │   │   ├── category.go         # Categoryリポジトリ
 │   │   ├── tag.go              # Tagリポジトリ
+│   │   ├── comment.go          # Commentリポジトリ
+│   │   ├── todo_history.go     # TodoHistoryリポジトリ
+│   │   ├── note.go             # Noteリポジトリ
+│   │   ├── note_revision.go    # NoteRevisionリポジトリ
+│   │   ├── todo_file.go        # TodoFileリポジトリ
 │   │   └── jwt_denylist.go     # JWT Denylistリポジトリ
 │   ├── service/
-│   │   └── auth.go             # 認証サービス（ビジネスロジック）
+│   │   ├── auth.go             # 認証サービス
+│   │   ├── todo.go             # Todoサービス（履歴記録）
+│   │   └── note.go             # Noteサービス（リビジョン管理）
+│   ├── storage/
+│   │   └── s3.go               # RustFS/S3ストレージクライアント
 │   ├── testutil/
 │   │   ├── fixture.go          # TestFixtureパターン
-│   │   └── assertions.go       # テスト用アサーション
+│   │   └── helpers.go          # テスト用ヘルパー
 │   ├── validator/
 │   │   └── validator.go        # カスタムバリデーション
 │   └── errors/
@@ -105,20 +126,32 @@ backend/
 AuthHandler → AuthService → UserRepository, JwtDenylistRepository
   └─ 認証ロジック（パスワードハッシュ化、JWT生成/検証）があるためService経由
 
-TodoHandler → TodoRepository, CategoryRepository (直接)
-  └─ 単純なCRUD + カウンターキャッシュ更新
+TodoHandler → TodoService → TodoRepository, TodoHistoryRepository, CategoryRepository
+  └─ Todo更新時の自動履歴記録があるためService経由
+
+NoteHandler → NoteService → NoteRepository, NoteRevisionRepository
+  └─ Note更新時のリビジョン自動作成があるためService経由
 
 CategoryHandler → CategoryRepository (直接)
   └─ 単純なCRUDのみ
 
 TagHandler → TagRepository (直接)
   └─ 単純なCRUDのみ
+
+CommentHandler → CommentRepository (直接)
+  └─ 単純なCRUD + 15分編集制限
+
+FileHandler → TodoFileRepository, S3Client (直接)
+  └─ ファイルアップロード/削除
+
+HistoryHandler → TodoHistoryRepository (直接)
+  └─ 履歴の読み取り専用
 ```
 
 **Service層を追加するタイミング:**
-- Todo完了時に通知送信
-- 履歴記録（TodoHistory）
-- ポイント付与などのドメインロジック追加時
+- 複数リポジトリをまたぐトランザクション処理
+- 履歴記録やリビジョン管理などの副作用を伴う処理
+- 外部サービスとの連携（ストレージ、通知など）
 
 この方針は実用的なアプローチ（Pragmatic Approach）であり、単純なCRUDに対してService層を追加するとパススルーコードが増えるため、必要になった時点で追加します。
 
@@ -267,6 +300,7 @@ GET    /api/v1/todos/:id          # Todo詳細
 PATCH  /api/v1/todos/:id          # Todo更新
 DELETE /api/v1/todos/:id          # Todo削除
 PATCH  /api/v1/todos/update_order # 順序更新
+GET    /api/v1/todos/search       # Todo検索（フィルタ/ソート/ページネーション）
 
 # Categories
 GET    /api/v1/categories         # Category一覧
@@ -281,18 +315,63 @@ POST   /api/v1/tags               # Tag作成
 GET    /api/v1/tags/:id           # Tag詳細
 PATCH  /api/v1/tags/:id           # Tag更新
 DELETE /api/v1/tags/:id           # Tag削除
+
+# Comments (nested under todos)
+GET    /api/v1/todos/:todo_id/comments     # Comment一覧
+POST   /api/v1/todos/:todo_id/comments     # Comment作成
+PATCH  /api/v1/todos/:todo_id/comments/:id # Comment更新（15分制限）
+DELETE /api/v1/todos/:todo_id/comments/:id # Comment削除（ソフトデリート）
+
+# Todo History (nested under todos)
+GET    /api/v1/todos/:todo_id/histories    # 履歴一覧（ページネーション）
+
+# Todo Files (nested under todos)
+POST   /api/v1/todos/:todo_id/files        # ファイルアップロード
+GET    /api/v1/todos/:todo_id/files        # ファイル一覧
+DELETE /api/v1/todos/:todo_id/files/:id    # ファイル削除
+
+# Notes
+GET    /api/v1/notes              # Note一覧（ページネーション）
+POST   /api/v1/notes              # Note作成
+GET    /api/v1/notes/:id          # Note詳細
+PATCH  /api/v1/notes/:id          # Note更新（リビジョン自動作成）
+DELETE /api/v1/notes/:id          # Note削除
+
+# Note Revisions (nested under notes)
+GET    /api/v1/notes/:note_id/revisions              # リビジョン一覧
+POST   /api/v1/notes/:note_id/revisions/:id/restore  # リビジョン復元
 ```
 
 ### Response Format
 
-**Success Response:**
+**Success Response（一覧）:**
+```json
+[
+  { "id": 1, "title": "Todo 1", ... },
+  { "id": 2, "title": "Todo 2", ... }
+]
+```
+
+**Success Response（単一リソース）:**
 ```json
 {
-  "status": {
-    "code": 200,
-    "message": "Success"
-  },
-  "data": { ... }
+  "id": 1,
+  "title": "Todo 1",
+  "completed": false,
+  ...
+}
+```
+
+**Success Response（ページネーション付き）:**
+```json
+{
+  "data": [...],
+  "meta": {
+    "current_page": 1,
+    "per_page": 20,
+    "total_pages": 5,
+    "total_count": 100
+  }
 }
 ```
 
@@ -326,6 +405,11 @@ DELETE /api/v1/tags/:id           # Tag削除
 | `ENV` | 環境 (development/production) | development |
 | `CORS_ALLOW_ORIGINS` | 許可オリジン（カンマ区切り） | http://localhost:3000 |
 | `CORS_MAX_AGE` | CORSプリフライトキャッシュ秒数 | 86400 |
+| `STORAGE_ENDPOINT` | S3互換ストレージURL | http://rustfs:9000 |
+| `STORAGE_ACCESS_KEY` | ストレージアクセスキー | admin |
+| `STORAGE_SECRET_KEY` | ストレージシークレットキー | password123 |
+| `STORAGE_BUCKET` | ファイル保存バケット名 | todo-files |
+| `STORAGE_REGION` | ストレージリージョン | us-east-1 |
 
 ---
 
@@ -397,7 +481,13 @@ func ResourceAt(resources []any, index int) map[string]any
    - `categories`: (user_id, name) 複合ユニークインデックス
    - `tags`: (user_id, name) 複合ユニークインデックス
    - `todo_tags`: (todo_id, tag_id) 複合ユニークインデックス
+   - `comments`: (commentable_type, commentable_id) ポリモーフィックインデックス
+   - `todo_histories`: (todo_id, created_at) 履歴検索用
+   - `notes`: user_id
+   - `note_revisions`: (note_id, version) リビジョン検索用
+   - `todo_files`: todo_id
 2. **Counter Cache**: `categories.todos_count` をIncrement/Decrementで効率的に更新
 3. **Connection Pool**: GORMのSetMaxOpenConns, SetMaxIdleConns設定
 4. **Eager Loading**: Preload()でN+1問題を回避
 5. **Graceful Shutdown**: 10秒のシャットダウンタイムアウト
+6. **Revision Cleanup**: NoteRevisionは50件を超えると古いものを自動削除

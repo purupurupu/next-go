@@ -2,9 +2,9 @@
 
 ## Technology Stack
 
-- **Framework**: Next.js 15.4.1 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript 5
-- **UI Library**: React 19.1.0
+- **UI Library**: React 19.2
 - **Styling**: Tailwind CSS v4
 - **Component Library**: shadcn/ui (Radix UI based)
 - **Package Manager**: pnpm
@@ -30,7 +30,7 @@ frontend/src/
 ├── contexts/             # React contexts
 │   └── auth-context.tsx  # Global auth state
 ├── features/             # Feature-based modules
-│   ├── category/        # Category feature (NEW)
+│   ├── category/        # Category feature
 │   │   ├── components/   # Category management components
 │   │   │   ├── CategoryManager.tsx
 │   │   │   ├── CategoryForm.tsx
@@ -41,7 +41,7 @@ frontend/src/
 │   │   │   └── api-client.ts
 │   │   └── types/       # Category types
 │   │       └── category.ts
-│   ├── comment/         # Comment feature (NEW)
+│   ├── comment/         # Comment feature
 │   │   ├── components/   # Comment components
 │   │   │   ├── CommentForm.tsx
 │   │   │   ├── CommentItem.tsx
@@ -52,7 +52,7 @@ frontend/src/
 │   │   │   └── api-client.ts
 │   │   └── types/       # Comment types
 │   │       └── comment.ts
-│   ├── history/         # History tracking feature (NEW)
+│   ├── history/         # History tracking feature
 │   │   ├── components/   # History components
 │   │   │   ├── HistoryItem.tsx
 │   │   │   └── HistoryList.tsx
@@ -62,6 +62,27 @@ frontend/src/
 │   │   │   └── api-client.ts
 │   │   └── types/       # History types
 │   │       └── history.ts
+│   ├── notes/           # Notes feature
+│   │   ├── components/   # Note components
+│   │   │   ├── NoteList.tsx
+│   │   │   ├── NoteItem.tsx
+│   │   │   ├── NoteForm.tsx
+│   │   │   ├── NoteEditor.tsx        # Markdown editor
+│   │   │   └── NoteRevisionList.tsx  # Revision history
+│   │   ├── hooks/       # Note hooks
+│   │   │   └── useNotes.ts
+│   │   ├── lib/         # Note API client
+│   │   │   └── api-client.ts
+│   │   └── types/       # Note types
+│   │       └── note.ts
+│   ├── tag/             # Tag feature
+│   │   ├── components/   # Tag components
+│   │   ├── hooks/       # Tag hooks
+│   │   │   └── useTags.ts
+│   │   ├── lib/         # Tag API client
+│   │   │   └── api-client.ts
+│   │   └── types/       # Tag types
+│   │       └── tag.ts
 │   └── todo/            # Todo feature
 │       ├── components/   # Todo-specific components
 │       │   ├── TodoList.tsx
@@ -85,7 +106,7 @@ frontend/src/
 │   ├── constants.ts     # Configuration
 │   └── utils.ts         # Utilities
 ├── styles/              # Global styles
-└── types/               # Shared types (NEW ARCHITECTURE)
+└── types/               # Shared types
     ├── common.ts        # Base entities and utilities
     └── auth.ts          # Authentication types
 ```
@@ -139,6 +160,16 @@ class CommentApiClient extends HttpClient {
 class TodoHistoryApiClient extends HttpClient {
   async getHistory(todoId: number): Promise<TodoHistory[]>
 }
+
+class NoteApiClient extends HttpClient {
+  async getNotes(page?: number): Promise<{ data: Note[], meta: PaginationMeta }>
+  async getNote(id: number): Promise<Note>
+  async createNote(data: CreateNoteData): Promise<Note>
+  async updateNote(id: number, data: UpdateNoteData): Promise<Note>
+  async deleteNote(id: number): Promise<void>
+  async getRevisions(noteId: number): Promise<NoteRevision[]>
+  async restoreRevision(noteId: number, revisionId: number): Promise<Note>
+}
 ```
 
 ### 3. Authentication Flow
@@ -158,7 +189,7 @@ Routes requiring authentication are wrapped with `ProtectedRoute` component that
 - Redirects to login if needed
 - Shows loading state during auth check
 
-### 5. Type System Architecture (NEW)
+### 5. Type System Architecture
 ```typescript
 // Base entity patterns (types/common.ts)
 interface BaseEntity {
@@ -179,6 +210,7 @@ interface Todo extends BaseEntity {
   comments_count: number;
   latest_comments: unknown[];
   history_count: number;
+  files: TodoFile[];
   // ...
 }
 
@@ -187,9 +219,25 @@ interface Category extends BaseEntity {
   color: string;
   todo_count: number;
 }
+
+interface Note extends BaseEntity {
+  title: string;
+  body_md: string;
+  body_html: string;
+  version: number;
+  revisions_count: number;
+}
+
+interface NoteRevision extends BaseEntity {
+  note_id: number;
+  title: string;
+  body_md: string;
+  body_html: string;
+  version: number;
+}
 ```
 
-### 6. Hooks Architecture (REFACTORED)
+### 6. Hooks Architecture
 **Modular Hook Design**: Large hooks split into focused modules
 
 ```typescript
@@ -210,7 +258,7 @@ export function useTodos() {
 }
 ```
 
-### 7. Optimistic Updates (ENHANCED)
+### 7. Optimistic Updates
 Optimistic updates extracted to pure utility functions:
 ```typescript
 // Pure functions for testability

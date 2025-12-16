@@ -34,11 +34,11 @@ export interface NotePayload {
 }
 
 export async function createNote(payload: NotePayload = {}): Promise<Note> {
-  return apiClient.post<Note>("/notes", { note: payload });
+  return apiClient.post<Note>("/notes", payload);
 }
 
 export async function updateNote(id: number, payload: NotePayload): Promise<Note> {
-  return apiClient.patch<Note>(`/notes/${id}`, { note: payload });
+  return apiClient.patch<Note>(`/notes/${id}`, payload);
 }
 
 export async function deleteNote(id: number, force = false): Promise<void> {

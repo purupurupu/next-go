@@ -3,8 +3,8 @@
 ## Overview
 
 - **Database System**: PostgreSQL 15
-- **ORM**: ActiveRecord (Rails)
-- **Migrations**: Rails migrations for schema management
+- **ORM**: GORM (Go)
+- **Migrations**: GORM AutoMigrate (development)
 - **Container**: Runs in Docker with persistent volume
 
 ## Entity Relationship Diagram
@@ -14,6 +14,7 @@ erDiagram
     users ||--o{ todos : "has many"
     users ||--o{ categories : "has many"
     users ||--o{ tags : "has many"
+    users ||--o{ notes : "has many"
     categories ||--o{ todos : "has many"
     todos }o--o{ tags : "many-to-many"
     todos ||--o{ todo_tags : "has many"
@@ -22,6 +23,8 @@ erDiagram
     users ||--o{ comments : "has many"
     todos ||--o{ todo_histories : "has many"
     users ||--o{ todo_histories : "has many"
+    todos ||--o{ todo_files : "has many"
+    notes ||--o{ note_revisions : "has many"
 
     users {
         bigserial id PK
@@ -105,6 +108,39 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+
+    todo_files {
+        bigserial id PK
+        bigint todo_id FK
+        varchar filename
+        varchar content_type
+        bigint byte_size
+        varchar storage_key
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    notes {
+        bigserial id PK
+        bigint user_id FK
+        varchar title
+        text body_md
+        text body_html
+        integer version
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    note_revisions {
+        bigserial id PK
+        bigint note_id FK
+        varchar title
+        text body_md
+        text body_html
+        integer version
+        timestamp created_at
+        timestamp updated_at
+    }
 ```
 
 ### 主要な関係性
@@ -112,14 +148,17 @@ erDiagram
 1. **User → Todos**: 1対多の関係。各ユーザーは複数のTodoを持つ
 2. **User → Categories**: 1対多の関係。各ユーザーは複数のカテゴリーを持つ
 3. **User → Tags**: 1対多の関係。各ユーザーは複数のタグを持つ
-4. **Category → Todos**: 1対多の関係。各カテゴリーは複数のTodoを含む（オプション）
-5. **Todo ↔ Tags**: 多対多の関係。TodoTagsテーブルを介して実現
+4. **User → Notes**: 1対多の関係。各ユーザーは複数のノートを持つ
+5. **Category → Todos**: 1対多の関係。各カテゴリーは複数のTodoを含む（オプション）
+6. **Todo ↔ Tags**: 多対多の関係。TodoTagsテーブルを介して実現
    - 1つのTodoは複数のタグを持てる
    - 1つのタグは複数のTodoに付けられる
-6. **Todo → Comments**: 1対多の関係（ポリモーフィック）。各Todoは複数のコメントを持つ
-7. **User → Comments**: 1対多の関係。各ユーザーは複数のコメントを投稿できる
-8. **Todo → TodoHistories**: 1対多の関係。各Todoは複数の履歴エントリを持つ
-9. **User → TodoHistories**: 1対多の関係。変更を行ったユーザーを記録
+7. **Todo → Comments**: 1対多の関係（ポリモーフィック）。各Todoは複数のコメントを持つ
+8. **User → Comments**: 1対多の関係。各ユーザーは複数のコメントを投稿できる
+9. **Todo → TodoHistories**: 1対多の関係。各Todoは複数の履歴エントリを持つ
+10. **User → TodoHistories**: 1対多の関係。変更を行ったユーザーを記録
+11. **Todo → TodoFiles**: 1対多の関係。各Todoは複数のファイルを添付できる
+12. **Note → NoteRevisions**: 1対多の関係。各Noteは複数のリビジョンを持つ（最大50件）
 
 ## Schema Details
 
@@ -326,6 +365,82 @@ CREATE INDEX index_todo_histories_on_action ON todo_histories(action);
 - `action`: Type of action (0=created, 1=updated, 2=deleted, 3=status_changed, 4=priority_changed)
 - `changes`: JSONB field storing the changes made
 
+### todo_files table
+```sql
+CREATE TABLE todo_files (
+  id bigserial PRIMARY KEY,
+  todo_id bigint NOT NULL,
+  filename varchar NOT NULL,
+  content_type varchar NOT NULL,
+  byte_size bigint NOT NULL,
+  storage_key varchar NOT NULL,
+  created_at timestamp(6) NOT NULL,
+  updated_at timestamp(6) NOT NULL,
+  FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+);
+
+CREATE INDEX index_todo_files_on_todo_id ON todo_files(todo_id);
+```
+
+**Purpose**: Stores file metadata for todo attachments (files stored in RustFS/S3)
+**Key Fields**:
+- `todo_id`: Parent todo (foreign key)
+- `filename`: Original filename
+- `content_type`: MIME type
+- `byte_size`: File size in bytes
+- `storage_key`: S3 object key for file retrieval
+
+### notes table
+```sql
+CREATE TABLE notes (
+  id bigserial PRIMARY KEY,
+  user_id bigint NOT NULL,
+  title varchar NOT NULL,
+  body_md text DEFAULT '',
+  body_html text DEFAULT '',
+  version integer DEFAULT 1 NOT NULL,
+  created_at timestamp(6) NOT NULL,
+  updated_at timestamp(6) NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX index_notes_on_user_id ON notes(user_id);
+```
+
+**Purpose**: Stores markdown notes with version tracking
+**Key Fields**:
+- `user_id`: Owner of the note (foreign key)
+- `title`: Note title
+- `body_md`: Markdown content
+- `body_html`: Rendered HTML content
+- `version`: Current version number (incremented on each update)
+
+### note_revisions table
+```sql
+CREATE TABLE note_revisions (
+  id bigserial PRIMARY KEY,
+  note_id bigint NOT NULL,
+  title varchar NOT NULL,
+  body_md text NOT NULL,
+  body_html text NOT NULL,
+  version integer NOT NULL,
+  created_at timestamp(6) NOT NULL,
+  updated_at timestamp(6) NOT NULL,
+  FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+);
+
+CREATE INDEX index_note_revisions_on_note_id ON note_revisions(note_id);
+CREATE INDEX index_note_revisions_on_note_id_and_version ON note_revisions(note_id, version);
+```
+
+**Purpose**: Stores revision history for notes (max 50 revisions per note)
+**Key Fields**:
+- `note_id`: Parent note (foreign key)
+- `title`: Title at this revision
+- `body_md`: Markdown content at this revision
+- `body_html`: Rendered HTML at this revision
+- `version`: Version number of this revision
+
 ## Indexes
 
 ### Performance Indexes
@@ -349,6 +464,10 @@ CREATE INDEX index_todo_histories_on_action ON todo_histories(action);
 18. **todo_histories.todo_id** - For finding history of a todo
 19. **todo_histories.user_id** - For finding changes by a user
 20. **todo_histories.action** - For filtering by action type
+21. **todo_files.todo_id** - For finding files of a todo
+22. **notes.user_id** - For filtering notes by user
+23. **note_revisions.note_id** - For finding revisions of a note
+24. **note_revisions.(note_id, version)** - For finding specific revision
 
 ### Referential Integrity
 - Foreign key constraint on `todos.user_id` → `users.id`
@@ -360,105 +479,118 @@ CREATE INDEX index_todo_histories_on_action ON todo_histories(action);
 - Foreign key constraint on `comments.user_id` → `users.id`
 - Foreign key constraint on `todo_histories.todo_id` → `todos.id`
 - Foreign key constraint on `todo_histories.user_id` → `users.id`
-- Cascade delete: When user is deleted, all their todos, categories, tags, and comments are deleted
-- Cascade delete: When todo is deleted, all its todo_tags, comments, and histories are deleted
+- Foreign key constraint on `todo_files.todo_id` → `todos.id`
+- Foreign key constraint on `notes.user_id` → `users.id`
+- Foreign key constraint on `note_revisions.note_id` → `notes.id`
+- Cascade delete: When user is deleted, all their todos, categories, tags, comments, and notes are deleted
+- Cascade delete: When todo is deleted, all its todo_tags, comments, histories, and files are deleted
 - Cascade delete: When tag is deleted, all its todo_tags are deleted
+- Cascade delete: When note is deleted, all its revisions are deleted
 
-## Migrations History
+## Schema Management
 
-```ruby
-# 20240712083651_create_todos.rb
-create_table :todos do |t|
-  t.string :title, null: false
-  t.boolean :completed, default: false
-  t.timestamps
-end
+### GORM AutoMigrate
 
-# 20240717132557_add_position_to_todos.rb
-add_column :todos, :position, :integer
-add_index :todos, :position
+本プロジェクトでは GORM の AutoMigrate を使用してスキーマを管理しています。
+開発環境ではサーバー起動時に自動的にマイグレーションが実行されます。
 
-# 20250309140846_add_due_date_to_todos.rb
-add_column :todos, :due_date, :date
+```go
+// pkg/database/database.go
+func AutoMigrate(db *gorm.DB) error {
+    return db.AutoMigrate(
+        &model.User{},
+        &model.Todo{},
+        &model.Category{},
+        &model.Tag{},
+        &model.TodoTag{},
+        &model.JwtDenylist{},
+        &model.Comment{},
+        &model.TodoHistory{},
+        &model.TodoFile{},
+        &model.Note{},
+        &model.NoteRevision{},
+    )
+}
+```
 
-# 20250717114547_devise_create_users.rb
-create_table :users do |t|
-  t.string :email, null: false, default: ""
-  t.string :encrypted_password, null: false, default: ""
-  t.string :name, null: false
-  # ... devise fields
-end
+### Model Definitions
 
-# 20250717114656_add_user_to_todos.rb
-add_reference :todos, :user, null: false, foreign_key: true
+```go
+// internal/model/todo.go
+type Todo struct {
+    ID          int64      `gorm:"primaryKey"`
+    Title       string     `gorm:"not null"`
+    Position    int        `gorm:"index"`
+    Completed   bool       `gorm:"default:false"`
+    Priority    int        `gorm:"default:1;not null;index"`
+    Status      int        `gorm:"default:0;not null;index"`
+    Description *string    `gorm:"type:text"`
+    DueDate     *time.Time `gorm:"type:date"`
+    UserID      int64      `gorm:"not null;index"`
+    CategoryID  *int64     `gorm:"index"`
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
 
-# 20250717133141_create_jwt_denylists.rb
-create_table :jwt_denylists do |t|
-  t.string :jti, null: false
-  t.datetime :exp, null: false
-  t.timestamps
-end
+    Category *Category  `gorm:"foreignKey:CategoryID"`
+    Tags     []Tag      `gorm:"many2many:todo_tags"`
+    Files    []TodoFile `gorm:"foreignKey:TodoID"`
+}
 
-# 20250719124812_add_priority_and_status_to_todos.rb
-add_column :todos, :priority, :integer, default: 1, null: false
-add_column :todos, :status, :integer, default: 0, null: false
-add_index :todos, :priority
-add_index :todos, :status
+// internal/model/note.go
+type Note struct {
+    ID        int64  `gorm:"primaryKey"`
+    UserID    int64  `gorm:"not null;index"`
+    Title     string `gorm:"not null"`
+    BodyMD    string `gorm:"column:body_md;type:text;default:''"`
+    BodyHTML  string `gorm:"column:body_html;type:text;default:''"`
+    Version   int    `gorm:"default:1;not null"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
 
-# 20250719124941_add_description_to_todos.rb
-add_column :todos, :description, :text
+    Revisions []NoteRevision `gorm:"foreignKey:NoteID"`
+}
 
-# 20250722132849_add_todos_count_to_categories.rb
-add_column :categories, :todos_count, :integer, default: 0, null: false
-Category.find_each { |category| Category.reset_counters(category.id, :todos) }
+// internal/model/note_revision.go
+type NoteRevision struct {
+    ID        int64  `gorm:"primaryKey"`
+    NoteID    int64  `gorm:"not null;index"`
+    Title     string `gorm:"not null"`
+    BodyMD    string `gorm:"column:body_md;type:text;not null"`
+    BodyHTML  string `gorm:"column:body_html;type:text;not null"`
+    Version   int    `gorm:"not null"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
+}
 
-# 20250723120402_create_tags.rb
-create_table :tags do |t|
-  t.string :name, null: false
-  t.string :color, null: false
-  t.references :user, null: false, foreign_key: true
-  t.timestamps
-end
-add_index :tags, [:user_id, :name], unique: true
+// internal/model/todo_file.go
+type TodoFile struct {
+    ID          int64  `gorm:"primaryKey"`
+    TodoID      int64  `gorm:"not null;index"`
+    Filename    string `gorm:"not null"`
+    ContentType string `gorm:"not null"`
+    ByteSize    int64  `gorm:"not null"`
+    StorageKey  string `gorm:"not null"`
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
+}
+```
 
-# 20250723120409_create_todo_tags.rb
-create_table :todo_tags do |t|
-  t.references :todo, null: false, foreign_key: true
-  t.references :tag, null: false, foreign_key: true
-  t.timestamps
-end
-add_index :todo_tags, [:todo_id, :tag_id], unique: true
+### Index Creation
 
-# 20250724XXXXXX_create_comments.rb
-create_table :comments do |t|
-  t.text :content, null: false
-  t.references :user, null: false, foreign_key: true
-  t.string :commentable_type, null: false
-  t.bigint :commentable_id, null: false
-  t.datetime :deleted_at
-  t.timestamps
-end
-add_index :comments, [:commentable_type, :commentable_id]
-add_index :comments, :deleted_at
+インデックスは GORM のタグで自動作成されます。複合インデックスやユニーク制約は明示的に定義：
 
-# 20250724XXXXXX_create_todo_histories.rb
-create_table :todo_histories do |t|
-  t.references :todo, null: false, foreign_key: true
-  t.references :user, null: false, foreign_key: true
-  t.integer :action, null: false
-  t.jsonb :changes, default: {}
-  t.timestamps
-end
-add_index :todo_histories, :action
+```go
+// internal/model/category.go
+type Category struct {
+    // ...
+}
 
-# 20250729121452_add_search_indexes_to_todos.rb
-add_index :todos, :title
-add_index :todos, :description
-add_index :todos, [:user_id, :status, :priority]
-add_index :todos, [:user_id, :category_id]
-add_index :todos, [:user_id, :due_date]
-add_index :todos, [:user_id, :created_at]
-add_index :todos, [:user_id, :updated_at]
+func (Category) TableName() string {
+    return "categories"
+}
+
+// GORM での複合ユニークインデックス
+// db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_user_id_name ON categories(user_id, name)")
 ```
 
 ## Data Integrity Rules
@@ -554,38 +686,49 @@ WHERE todo_id = ?
 ORDER BY created_at;
 ```
 
-### Performance Considerations (ENHANCED)
-1. **N+1 Query Prevention**: 
+### Performance Considerations
+1. **N+1 Query Prevention**:
    - **Counter cache** on categories eliminates N+1 queries for todo counts
-   - Use `includes/eager` loading in Rails for associations
-   - Search endpoint uses `includes(:category, :tags)` to prevent N+1 queries
-2. **Bulk Operations**: 
-   - `TodosController#update_order` uses transaction for efficient bulk position updates
-3. **Pagination**: 
-   - Implemented via Kaminari gem
-   - Search endpoint supports `page` and `per_page` parameters
-4. **Soft Deletes**: Not implemented for todos, using hard deletes
+   - Use GORM `Preload()` for eager loading associations
+   - Search endpoint uses `Preload("Category").Preload("Tags")` to prevent N+1 queries
+2. **Bulk Operations**:
+   - `TodoHandler.UpdateOrder` uses transaction for efficient bulk position updates
+3. **Pagination**:
+   - Implemented via GORM `Offset()` and `Limit()`
+   - Notes and History endpoints support `page` and `per_page` parameters
+4. **Soft Deletes**:
+   - Comments use soft delete (`deleted_at` timestamp)
+   - Todos use hard deletes
 5. **Search Performance**:
    - Database indexes on searchable fields (title, description)
    - Composite indexes for common filter combinations
    - Index on foreign keys for efficient joins
+6. **Revision Cleanup**:
+   - Note revisions are limited to 50 per note
+   - Old revisions automatically deleted when limit exceeded
 
 ### Counter Cache Implementation
-```ruby
-# Category model
-class Category < ApplicationRecord
-  has_many :todos, counter_cache: true, dependent: :destroy
-end
+```go
+// internal/repository/category.go
 
-# Todo model
-class Todo < ApplicationRecord
-  belongs_to :category, counter_cache: true, optional: true
-end
+// Increment todos_count when todo is added to category
+func (r *CategoryRepository) IncrementTodosCount(categoryID int64) error {
+    return r.db.Model(&model.Category{}).
+        Where("id = ?", categoryID).
+        UpdateColumn("todos_count", gorm.Expr("todos_count + ?", 1)).
+        Error
+}
 
-# Migration automatically updates counter
-Category.find_each do |category|
-  Category.reset_counters(category.id, :todos)
-end
+// Decrement todos_count when todo is removed from category
+func (r *CategoryRepository) DecrementTodosCount(categoryID int64) error {
+    return r.db.Model(&model.Category{}).
+        Where("id = ?", categoryID).
+        UpdateColumn("todos_count", gorm.Expr("GREATEST(todos_count - 1, 0)")).
+        Error
+}
+
+// Called in TodoHandler when creating/updating/deleting todos
+// to maintain counter cache consistency
 ```
 
 ## Backup and Recovery
@@ -596,25 +739,38 @@ end
 - Manual backup: `docker compose exec db pg_dump`
 
 ### Development Seeds
-```ruby
-# db/seeds.rb
-user = User.create!(
-  email: 'test@example.com',
-  password: 'password123',
-  name: 'Test User'
-)
+```bash
+# シードデータの投入
+docker compose exec backend go run cmd/seed/main.go
+```
 
-10.times do |i|
-  user.todos.create!(
-    title: "Todo #{i + 1}",
-    position: i,
-    completed: [true, false].sample,
-    priority: [:low, :medium, :high].sample,
-    status: [:pending, :in_progress, :completed].sample,
-    description: "Description for todo #{i + 1}",
-    due_date: rand(1..30).days.from_now
-  )
-end
+```go
+// cmd/seed/main.go
+func main() {
+    // Create test user
+    hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+    user := &model.User{
+        Email:    "test@example.com",
+        Password: string(hashedPassword),
+        Name:     "Test User",
+    }
+    db.Create(user)
+
+    // Create sample todos
+    for i := 1; i <= 10; i++ {
+        todo := &model.Todo{
+            Title:       fmt.Sprintf("Todo %d", i),
+            Position:    i,
+            Completed:   rand.Intn(2) == 1,
+            Priority:    rand.Intn(3),
+            Status:      rand.Intn(3),
+            Description: util.Ptr(fmt.Sprintf("Description for todo %d", i)),
+            DueDate:     util.Ptr(time.Now().AddDate(0, 0, rand.Intn(30))),
+            UserID:      user.ID,
+        }
+        db.Create(todo)
+    }
+}
 ```
 
 ## Search and Filtering Implementation
@@ -665,16 +821,23 @@ WHERE t.user_id = ?
 ORDER BY t.position;
 ```
 
+## Current Implementation Status
+
+| 機能 | 状態 |
+|------|------|
+| Soft Deletes | ✅ Comments で実装済み |
+| Audit Trail | ✅ TodoHistory で実装済み |
+| File Storage | ✅ RustFS (S3互換) で実装済み |
+| Note Revisions | ✅ NoteRevision で実装済み（最大50件） |
+
 ## Future Considerations
 
-1. **Soft Deletes**: Add `deleted_at` for recoverable todos (already implemented for comments)
-2. **Audit Trail**: Track changes to todos (already implemented with todo_histories)
-3. **Full-Text Search**: Upgrade to PostgreSQL FTS for advanced search features:
-   - Stemming and language-specific search
-   - Ranking and relevance scores
-   - Search suggestions and autocomplete
-4. **Elasticsearch Integration**: For even more advanced search capabilities
-5. **Archiving**: Move old completed todos to archive table
-6. **Multi-tenancy**: If scaling to organizations/teams
-7. **Real-time Updates**: WebSocket support for live comments and updates
-8. **File Storage**: Move from Active Storage to cloud storage for scalability
+1. **Full-Text Search**: PostgreSQL FTS へのアップグレード
+   - 形態素解析と言語別検索
+   - 関連度スコアリング
+   - 検索サジェストとオートコンプリート
+2. **Elasticsearch Integration**: より高度な検索機能
+3. **Archiving**: 古い完了済みTodoのアーカイブテーブル移動
+4. **Multi-tenancy**: 組織/チーム対応
+5. **Real-time Updates**: WebSocket による リアルタイム更新
+6. **Todo Soft Deletes**: Todo のソフトデリート（現在はハードデリート）
