@@ -14,6 +14,7 @@ Full-stack Todo application with:
 - **Backend**: Go 1.25 with Echo framework, GORM, JWT authentication
 - **Database**: PostgreSQL 15
 - **Cache**: Redis 7
+- **Storage**: RustFS (S3互換)
 - **Infrastructure**: Docker Compose
 
 Services:
@@ -22,6 +23,7 @@ Services:
 - Backend API: http://localhost:3001
 - PostgreSQL: localhost:5432
 - Redis: localhost:6379
+- RustFS: localhost:9000
 
 ## Common Development Commands
 
@@ -85,7 +87,14 @@ docker compose exec backend go build -o bin/api cmd/api/main.go
 - `f.CreateUser(email)` - テストユーザー作成（JWT token返却）
 - `f.CreateTodo(userID, title)` - テストTodo作成
 - `f.CreateComment(userID, todoID, content)` - テストコメント作成
+- `f.CreateNote(userID, title, bodyMD)` - テストNote作成（初期リビジョン付き）
 - `f.CallAuth(token, method, path, body, handler)` - 認証付きハンドラ呼び出し
+
+**Seed Data** (`cmd/seed/`):
+```bash
+docker compose exec backend go run ./cmd/seed/main.go
+```
+テストユーザー（test@example.com / password123）とサンプルデータを作成
 
 ### Database
 
@@ -95,7 +104,9 @@ Database auto-migrates on startup in development mode via GORM AutoMigrate.
 
 ```
 backend/
-├── cmd/api/main.go           # Entry point, DI, routing
+├── cmd/
+│   ├── api/main.go           # Entry point, DI, routing
+│   └── seed/main.go          # Sample data seeder
 ├── internal/
 │   ├── config/               # Environment config (envconfig)
 │   ├── handler/              # HTTP handlers (Echo)
@@ -105,7 +116,8 @@ backend/
 │   ├── service/              # Business logic (TodoService: 履歴記録含む)
 │   ├── testutil/             # テストヘルパー (fixture, helpers)
 │   ├── validator/            # Request validation (go-playground/validator)
-│   └── errors/               # API error handling (EditTimeExpired など)
+│   ├── errors/               # API error handling (EditTimeExpired など)
+│   └── storage/              # S3互換ストレージ (RustFS)
 └── pkg/
     ├── database/             # DB connection
     ├── response/             # Standardized API responses
@@ -129,6 +141,8 @@ backend/
 - Todo Search/Filter (GET /api/v1/todos/search) - Complete
 - Comments (15分編集制限、ソフトデリート) - Complete
 - TodoHistory (自動履歴記録、日本語メッセージ) - Complete
+- Files (RustFS/S3互換ストレージ、サムネイル生成) - Complete
+- Notes (Markdownメモ、リビジョン管理) - Complete
 
 ## Frontend Architecture
 
@@ -143,7 +157,8 @@ frontend/src/
 │   ├── tag/             # Tag management
 │   ├── comment/         # Comments
 │   ├── history/         # Audit history
-│   └── notes/           # Notes feature
+│   ├── file/            # File attachments
+│   └── notes/           # Notes feature (Markdown)
 ├── hooks/                # Shared hooks
 ├── lib/                  # API clients, utilities
 │   ├── api-client.ts    # HttpClient + ApiClient（/api/v1プレフィックス付き）
@@ -173,6 +188,13 @@ frontend/src/
 - `/api/v1/tags` - Tag CRUD
 - `/api/v1/todos/:todo_id/comments` - Comments (CRUD、15分編集制限)
 - `/api/v1/todos/:todo_id/histories` - Audit trail (読み取り専用、ページネーション)
+- `/api/v1/todos/:todo_id/files` - File attachments (upload, download, thumb)
+- `/api/v1/notes` - Notes CRUD (Markdownメモ)
+- `/api/v1/notes/:id/revisions` - Note revisions (履歴管理・復元)
+
+**APIレスポンス形式**:
+- 一覧エンドポイント: `{data: [...], meta: {total, current_page, ...}}`
+- 単一オブジェクト: オブジェクトを直接返却（Create, Show, Update）
 
 ## Environment Variables
 
