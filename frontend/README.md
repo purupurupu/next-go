@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend
 
-## Getting Started
+Next.js 16 + React 19.2 + TypeScript + Tailwind CSS v4
 
-First, run the development server:
+## 技術スタック
+
+- **Framework**: Next.js 16 (App Router)
+- **UI Library**: React 19.2
+- **Language**: TypeScript 5
+- **Styling**: Tailwind CSS v4
+- **Components**: shadcn/ui
+- **Package Manager**: pnpm
+
+## セットアップ
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Docker環境（推奨）
+docker compose up -d
+
+# ローカル開発
+cd frontend
+pnpm install
+pnpm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 開発コマンド
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Docker環境
+docker compose exec frontend pnpm run dev        # 開発サーバー
+docker compose exec frontend pnpm run build      # 本番ビルド
+docker compose exec frontend pnpm run lint       # ESLint
+docker compose exec frontend pnpm run lint:fix   # ESLint (自動修正)
+docker compose exec frontend pnpm run typecheck  # TypeScript チェック
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# ローカル環境
+pnpm run dev
+pnpm run build
+pnpm run lint
+pnpm run typecheck
+```
 
-## Learn More
+## ディレクトリ構造
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/                  # Next.js App Router
+│   ├── (auth)/          # 認証関連ページ
+│   ├── (dashboard)/     # ダッシュボード
+│   └── layout.tsx       # Root layout
+├── components/           # 共通UIコンポーネント (shadcn/ui)
+├── contexts/             # React Context
+│   └── auth-context.tsx # 認証状態管理
+├── features/             # 機能別モジュール
+│   ├── todo/            # Todo機能
+│   ├── category/        # カテゴリ管理
+│   ├── tag/             # タグ管理
+│   ├── comment/         # コメント
+│   ├── history/         # 変更履歴
+│   ├── file/            # ファイル添付
+│   └── notes/           # ノート機能
+├── hooks/                # 共通フック
+├── lib/                  # ユーティリティ
+│   ├── api-client.ts    # API クライアント
+│   ├── auth-client.ts   # 認証 API
+│   └── constants.ts     # 定数
+└── types/                # 型定義
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Feature モジュール構成
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+各 feature は以下の構成:
 
-## Deploy on Vercel
+```
+features/todo/
+├── components/          # UI コンポーネント
+├── hooks/               # カスタムフック
+├── lib/
+│   └── api.ts          # API 関数
+└── types.ts            # 型定義
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API クライアント
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```typescript
+// ApiClient を使用（/api/v1 プレフィックス付き）
+import { apiClient } from '@/lib/api-client';
+
+// GET
+const todos = await apiClient.get<TodosResponse>('/todos');
+
+// POST
+const todo = await apiClient.post<Todo>('/todos', { todo: { title: 'New' } });
+
+// PATCH
+const updated = await apiClient.patch<Todo>(`/todos/${id}`, { todo: data });
+
+// DELETE
+await apiClient.delete<void>(`/todos/${id}`);
+```
+
+## 環境変数
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+## Path Aliases
+
+```typescript
+// tsconfig.json で設定済み
+import { Button } from '@/components/ui/button';
+import { useTodos } from '@/features/todo/hooks/useTodos';
+```
+
+## 関連ドキュメント
+
+- [Architecture Overview](../docs/architecture/overview.md)
+- [API Documentation](../docs/api/README.md)
+- [CLAUDE.md](../CLAUDE.md) - 開発ガイドライン
