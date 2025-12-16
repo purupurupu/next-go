@@ -75,9 +75,7 @@ Add a new comment to a todo.
 **Request Body:**
 ```json
 {
-  "comment": {
-    "content": "This is a new comment"
-  }
+  "content": "This is a new comment"
 }
 ```
 
@@ -122,9 +120,7 @@ Update an existing comment. **Note: Comments can only be edited within 15 minute
 **Request Body:**
 ```json
 {
-  "comment": {
-    "content": "Updated comment text"
-  }
+  "content": "Updated comment text"
 }
 ```
 
@@ -204,19 +200,15 @@ This design encourages thoughtful commenting while still allowing quick correcti
 // Using ApiClient pattern from the project
 class CommentApiClient extends ApiClient {
   async getComments(todoId: number) {
-    return this.get<{ comments: Comment[] }>(`/todos/${todoId}/comments`);
+    return this.get<Comment[]>(`/todos/${todoId}/comments`);
   }
 
   async createComment(todoId: number, content: string) {
-    return this.post<{ data: { comment: Comment } }>(`/todos/${todoId}/comments`, {
-      comment: { content }
-    });
+    return this.post<Comment>(`/todos/${todoId}/comments`, { content });
   }
 
   async updateComment(todoId: number, commentId: number, content: string) {
-    return this.patch<{ comment: Comment }>(`/todos/${todoId}/comments/${commentId}`, {
-      comment: { content }
-    });
+    return this.patch<Comment>(`/todos/${todoId}/comments/${commentId}`, { content });
   }
 
   async deleteComment(todoId: number, commentId: number) {

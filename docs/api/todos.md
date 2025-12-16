@@ -76,7 +76,7 @@ Get all todos for the authenticated user.
         "filename": "code_review.pdf",
         "content_type": "application/pdf",
         "byte_size": 204800,
-        "url": "http://localhost:3001/rails/active_storage/blobs/redirect/..."
+        "url": "http://localhost:9000/todo-files/..."
       }
     ],
     "comments_count": 0,
@@ -136,16 +136,13 @@ Create a new todo item.
 **Request Body:**
 ```json
 {
-  "todo": {
-    "title": "New task",
-    "priority": "high",
-    "status": "pending",
-    "description": "Detailed task description",
-    "due_date": "2024-12-31",
-    "category_id": 2,
-    "tag_ids": [1, 3],
-    "files": [/* File objects from multipart form-data */]
-  }
+  "title": "New task",
+  "priority": "high",
+  "status": "pending",
+  "description": "Detailed task description",
+  "due_date": "2024-12-31",
+  "category_id": 2,
+  "tag_ids": [1, 3]
 }
 ```
 
@@ -200,16 +197,14 @@ Update an existing todo.
 **Request Body:**
 ```json
 {
-  "todo": {
-    "title": "Updated task",
-    "completed": true,
-    "priority": "low",
-    "status": "completed",
-    "description": "Updated description",
-    "due_date": "2024-12-31",
-    "category_id": 3,
-    "tag_ids": [2, 4]
-  }
+  "title": "Updated task",
+  "completed": true,
+  "priority": "low",
+  "status": "completed",
+  "description": "Updated description",
+  "due_date": "2024-12-31",
+  "category_id": 3,
+  "tag_ids": [2, 4]
 }
 ```
 
@@ -572,7 +567,7 @@ class TodoApiClient {
         'Authorization': `Bearer ${this.token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ todo: todoData })
+      body: JSON.stringify(todoData)
     });
     return response.json();
   }

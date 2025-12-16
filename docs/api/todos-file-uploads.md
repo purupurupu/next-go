@@ -1,56 +1,85 @@
 # Todo File Uploads API
 
-This document describes the file upload functionality for todos.
+Todo にファイルを添付するための API です。
 
 ## Overview
 
-Todos can have multiple file attachments using Rails Active Storage. Files are stored locally in development and can be configured for cloud storage (AWS S3, Google Cloud Storage, etc.) in production.
+Todo には複数のファイルを添付できます。ファイルは RustFS (S3 互換ストレージ) に保存されます。
+
+## 技術スタック
+
+- **Storage**: RustFS (S3 互換)
+- **Backend**: Go + Echo
+- **Endpoint**: `http://localhost:9000` (RustFS)
+- **Console**: `http://localhost:9001` (RustFS Console)
 
 ## Endpoints
 
-### Upload Files with Todo Creation
+### Upload Files
 
-**POST** `/api/todos`
+**POST** `/api/v1/todos/:todo_id/files`
 
-When creating a new todo, you can attach multiple files:
+Todo にファイルを添付します。
 
 ```bash
-curl -X POST http://localhost:3001/api/todos \
+curl -X POST http://localhost:3001/api/v1/todos/1/files \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -F "todo[title]=Todo with attachments" \
-  -F "todo[description]=This todo has files" \
-  -F "todo[files][]=@/path/to/file1.pdf" \
-  -F "todo[files][]=@/path/to/file2.jpg"
+  -F "file=@/path/to/document.pdf"
 ```
 
-### Update Todo with Additional Files
-
-**PUT/PATCH** `/api/todos/:id`
-
-Add more files to an existing todo:
-
-```bash
-curl -X PATCH http://localhost:3001/api/todos/1 \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -F "todo[files][]=@/path/to/newfile.docx"
+**Success Response (201 Created):**
+```json
+{
+  "id": 1,
+  "filename": "document.pdf",
+  "content_type": "application/pdf",
+  "byte_size": 102400,
+  "url": "http://localhost:9000/todo-files/1/document.pdf"
+}
 ```
 
-**Note**: This adds new files without removing existing ones.
+### List Files
 
-### Delete a Specific File
+**GET** `/api/v1/todos/:todo_id/files`
 
-**DELETE** `/api/todos/:todo_id/files/:file_id`
+Todo に添付されたファイル一覧を取得します。
 
-Remove a specific file from a todo:
+**Success Response (200 OK):**
+```json
+[
+  {
+    "id": 1,
+    "filename": "document.pdf",
+    "content_type": "application/pdf",
+    "byte_size": 102400,
+    "url": "http://localhost:9000/todo-files/1/document.pdf"
+  },
+  {
+    "id": 2,
+    "filename": "photo.jpg",
+    "content_type": "image/jpeg",
+    "byte_size": 51200,
+    "url": "http://localhost:9000/todo-files/1/photo.jpg"
+  }
+]
+```
+
+### Delete File
+
+**DELETE** `/api/v1/todos/:todo_id/files/:file_id`
+
+ファイルを削除します。
 
 ```bash
-curl -X DELETE http://localhost:3001/api/todos/1/files/123 \
+curl -X DELETE http://localhost:3001/api/v1/todos/1/files/123 \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
+**Success Response (204 No Content)**
+
 ## Response Format
 
-Todos with files include a `files` array in the response:
+Todo レスポンスに含まれる files 配列:
 
 ```json
 {
@@ -63,139 +92,138 @@ Todos with files include a `files` array in the response:
       "filename": "document.pdf",
       "content_type": "application/pdf",
       "byte_size": 102400,
-      "url": "http://localhost:3001/rails/active_storage/blobs/redirect/..."
-    },
-    {
-      "id": 124,
-      "filename": "photo.jpg",
-      "content_type": "image/jpeg",
-      "byte_size": 51200,
-      "url": "http://localhost:3001/rails/active_storage/blobs/redirect/...",
-      "variants": {
-        "thumb": "http://localhost:3001/rails/active_storage/representations/redirect/...",
-        "medium": "http://localhost:3001/rails/active_storage/representations/redirect/..."
-      }
+      "url": "http://localhost:9000/todo-files/..."
     }
-  ],
-  // ... other todo fields
+  ]
 }
 ```
 
-## File Information
+## File Object
 
-Each file object contains:
-- `id`: Unique identifier for the attachment
-- `filename`: Original filename
-- `content_type`: MIME type of the file
-- `byte_size`: File size in bytes
-- `url`: Direct URL to download the file
-- `variants`: (for images only) URLs for resized versions
-  - `thumb`: Thumbnail version (max 300x300)
-  - `medium`: Medium version (max 800x800)
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | Integer | ファイル ID |
+| `filename` | String | ファイル名 |
+| `content_type` | String | MIME タイプ |
+| `byte_size` | Integer | ファイルサイズ (bytes) |
+| `url` | String | ダウンロード URL |
 
-## Frontend Implementation Notes
+## File Validations
 
-### File Upload Form
+### File Size
+- 最大: **10MB**
+- エラー: "ファイルサイズは10MB以下にしてください"
 
-Use multipart form data when uploading files:
+### Allowed File Types
 
-```javascript
-const formData = new FormData();
-formData.append('todo[title]', 'My Todo');
-formData.append('todo[description]', 'Description');
+| Category | Types |
+|----------|-------|
+| Images | JPEG, PNG, GIF, WebP |
+| Documents | PDF, DOC, DOCX, XLS, XLSX |
+| Text | TXT, CSV |
 
-// Add multiple files
-files.forEach(file => {
-  formData.append('todo[files][]', file);
-});
+許可されていないファイルタイプの場合:
+- エラー: "許可されていないファイルタイプです"
 
-fetch('/api/todos', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`
-    // Don't set Content-Type - let browser set it with boundary
-  },
-  body: formData
-});
+## Frontend Implementation
+
+### Upload File
+
+```typescript
+async function uploadFile(todoId: number, file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`/api/v1/todos/${todoId}/files`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+      // Content-Type は自動設定される
+    },
+    body: formData
+  });
+
+  return response.json();
+}
 ```
 
 ### Display Files
 
-Files can be displayed or downloaded using the provided URLs:
-
-```javascript
-// Download link
+```typescript
+// ダウンロードリンク
 <a href={file.url} download={file.filename}>
-  Download {file.filename}
+  {file.filename} をダウンロード
 </a>
 
-// Display image with variants
+// 画像プレビュー
 {file.content_type.startsWith('image/') && (
-  <>
-    {/* Thumbnail for previews */}
-    <img src={file.variants?.thumb || file.url} alt={file.filename} />
-    
-    {/* Medium size for modals/lightbox */}
-    <img src={file.variants?.medium || file.url} alt={file.filename} />
-    
-    {/* Full size original */}
-    <a href={file.url} target="_blank">View full size</a>
-  </>
+  <img src={file.url} alt={file.filename} />
 )}
 ```
 
 ## Storage Configuration
 
-### Development
-Files are stored locally in the `storage` directory.
-
-### Production
-Configure `config/storage.yml` for cloud storage:
+### Development (Docker Compose)
 
 ```yaml
-amazon:
-  service: S3
-  access_key_id: <%= Rails.application.credentials.dig(:aws, :access_key_id) %>
-  secret_access_key: <%= Rails.application.credentials.dig(:aws, :secret_access_key) %>
-  region: us-east-1
-  bucket: your-bucket-name
+# compose.yml
+rustfs:
+  image: rustfs/rustfs:latest
+  ports:
+    - "9000:9000"  # S3 API
+    - "9001:9001"  # Console
+  environment:
+    RUSTFS_ROOT_USER: admin
+    RUSTFS_ROOT_PASSWORD: password123
+  volumes:
+    - rustfs_data:/data
 ```
 
-Then update `config/environments/production.rb`:
+### Environment Variables
 
-```ruby
-config.active_storage.service = :amazon
+```env
+STORAGE_ENDPOINT=http://rustfs:9000
+STORAGE_ACCESS_KEY=admin
+STORAGE_SECRET_KEY=password123
+STORAGE_BUCKET=todo-files
+STORAGE_REGION=us-east-1
 ```
-
-## File Validations
-
-The Todo model includes the following file validations:
-
-### File Size
-- Maximum file size: **10MB per file**
-- Error message: "ファイルサイズは10MB以下にしてください"
-
-### Allowed File Types
-- **Images**: JPEG, PNG, GIF, WebP
-- **Documents**: PDF, Word (DOC, DOCX), Excel (XLS, XLSX)
-- **Text**: Plain text (TXT), CSV
-- Error message: "許可されていないファイルタイプです"
-
-### Image Variants
-For uploaded images, the following variants are automatically generated:
-- **thumb**: Maximum 300x300 pixels (for thumbnails)
-- **medium**: Maximum 800x800 pixels (for previews)
-
-The original image is always preserved for full-size viewing.
 
 ## Security Considerations
 
-1. **File Type Validation**: Always validate file types on the server side
-2. **File Size Limits**: Implement reasonable file size limits
-3. **Virus Scanning**: Consider integrating virus scanning for uploaded files
-4. **Access Control**: Files inherit the same access control as their parent todo
-5. **Direct Upload**: For large files, consider implementing direct uploads to cloud storage
+1. **File Type Validation**: サーバー側でファイルタイプを検証
+2. **File Size Limits**: 10MB 制限
+3. **Access Control**: ファイルは親 Todo と同じアクセス権限
+4. **Signed URLs**: 本番環境では署名付き URL を使用
 
-## CORS Configuration
+## Error Responses
 
-The backend CORS configuration already allows file uploads from the frontend at `localhost:3000`. The Active Storage URLs are automatically served with proper CORS headers.
+### 400 Bad Request
+```json
+{
+  "error": {
+    "code": "INVALID_FILE",
+    "message": "許可されていないファイルタイプです"
+  }
+}
+```
+
+### 413 Payload Too Large
+```json
+{
+  "error": {
+    "code": "FILE_TOO_LARGE",
+    "message": "ファイルサイズは10MB以下にしてください"
+  }
+}
+```
+
+### 404 Not Found
+```json
+{
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "File with ID '123' not found"
+  }
+}
+```

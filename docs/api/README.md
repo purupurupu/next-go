@@ -173,7 +173,7 @@ curl -X GET http://localhost:3001/api/v1/todos \
 curl -X POST http://localhost:3001/api/v1/notes \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <jwt_token>" \
-  -d '{"note":{"title":"My Note","body_md":"# Hello"}}'
+  -d '{"title":"My Note","body_md":"# Hello"}'
 ```
 
 ### Using JavaScript (Fetch)
