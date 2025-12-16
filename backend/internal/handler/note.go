@@ -246,7 +246,7 @@ func (h *NoteHandler) Create(c echo.Context) error {
 		UpdatedAt:    util.FormatRFC3339(note.UpdatedAt),
 	}
 
-	return response.Created(c, map[string]interface{}{"data": resp})
+	return response.Created(c, resp)
 }
 
 // Show retrieves a single note
@@ -294,7 +294,7 @@ func (h *NoteHandler) Show(c echo.Context) error {
 		UpdatedAt:    util.FormatRFC3339(note.UpdatedAt),
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{"data": resp})
+	return c.JSON(http.StatusOK, resp)
 }
 
 // Update updates a note
@@ -359,7 +359,7 @@ func (h *NoteHandler) Update(c echo.Context) error {
 		UpdatedAt:    util.FormatRFC3339(note.UpdatedAt),
 	}
 
-	return response.OK(c, map[string]interface{}{"data": resp})
+	return response.OK(c, resp)
 }
 
 // Delete soft/hard deletes a note
@@ -505,11 +505,5 @@ func (h *NoteHandler) RestoreRevision(c echo.Context) error {
 		UpdatedAt:    util.FormatRFC3339(note.UpdatedAt),
 	}
 
-	return response.OK(c, map[string]interface{}{
-		"status": map[string]interface{}{
-			"code":    200,
-			"message": "Note restored from revision",
-		},
-		"data": resp,
-	})
+	return response.OK(c, resp)
 }

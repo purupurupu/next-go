@@ -157,10 +157,10 @@ func TestNoteCreate_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, rec.Code)
 
-	var resp map[string]handler.NoteResponse
+	var resp handler.NoteResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, "My Note", *resp["data"].Title)
-	assert.Equal(t, "# Hello\n\nWorld", *resp["data"].BodyMD)
+	assert.Equal(t, "My Note", *resp.Title)
+	assert.Equal(t, "# Hello\n\nWorld", *resp.BodyMD)
 }
 
 func TestNoteCreate_Empty(t *testing.T) {
@@ -182,9 +182,9 @@ func TestNoteCreate_CreatesInitialRevision(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, rec.Code)
 
-	var resp map[string]handler.NoteResponse
+	var resp handler.NoteResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	noteID := resp["data"].ID
+	noteID := resp.ID
 
 	// Check revision was created
 	revisions, total, err := f.NoteRevisionRepo.FindByNoteID(noteID, 1, 10)
@@ -222,9 +222,9 @@ func TestNoteShow_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var resp map[string]handler.NoteResponse
+	var resp handler.NoteResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, "My Note", *resp["data"].Title)
+	assert.Equal(t, "My Note", *resp.Title)
 }
 
 func TestNoteShow_NotFound(t *testing.T) {
@@ -261,9 +261,9 @@ func TestNoteUpdate_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var resp map[string]handler.NoteResponse
+	var resp handler.NoteResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, "Updated Title", *resp["data"].Title)
+	assert.Equal(t, "Updated Title", *resp.Title)
 }
 
 func TestNoteUpdate_BodyMD_CreatesRevision(t *testing.T) {
@@ -317,10 +317,10 @@ func TestNoteUpdate_Archive(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var resp map[string]handler.NoteResponse
+	var resp handler.NoteResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.True(t, resp["data"].Archived)
-	assert.NotNil(t, resp["data"].ArchivedAt)
+	assert.True(t, resp.Archived)
+	assert.NotNil(t, resp.ArchivedAt)
 }
 
 func TestNoteUpdate_Pin(t *testing.T) {
@@ -334,9 +334,9 @@ func TestNoteUpdate_Pin(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var resp map[string]handler.NoteResponse
+	var resp handler.NoteResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.True(t, resp["data"].Pinned)
+	assert.True(t, resp.Pinned)
 }
 
 func TestNoteUpdate_NotFound(t *testing.T) {
