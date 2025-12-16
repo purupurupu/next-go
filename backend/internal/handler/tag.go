@@ -40,7 +40,6 @@ type UpdateTagRequest struct {
 // TagResponse represents a tag in API responses
 type TagResponse struct {
 	ID        int64   `json:"id"`
-	UserID    int64   `json:"user_id"`
 	Name      string  `json:"name"`
 	Color     *string `json:"color"`
 	CreatedAt string  `json:"created_at"`
@@ -51,7 +50,6 @@ type TagResponse struct {
 func toTagResponse(tag *model.Tag) TagResponse {
 	return TagResponse{
 		ID:        tag.ID,
-		UserID:    tag.UserID,
 		Name:      tag.Name,
 		Color:     tag.Color,
 		CreatedAt: util.FormatRFC3339(tag.CreatedAt),

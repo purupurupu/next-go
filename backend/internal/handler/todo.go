@@ -66,7 +66,6 @@ type UpdateOrderRequest struct {
 // TodoResponse represents a todo in API responses
 type TodoResponse struct {
 	ID          int64            `json:"id"`
-	UserID      int64            `json:"user_id"`
 	CategoryID  *int64           `json:"category_id"`
 	Title       string           `json:"title"`
 	Description *string          `json:"description"`
@@ -99,7 +98,6 @@ type TagSummary struct {
 func toTodoResponse(todo *model.Todo) TodoResponse {
 	resp := TodoResponse{
 		ID:          todo.ID,
-		UserID:      todo.UserID,
 		CategoryID:  todo.CategoryID,
 		Title:       todo.Title,
 		Description: todo.Description,
@@ -153,9 +151,7 @@ func (h *TodoHandler) List(c echo.Context) error {
 		todoResponses[i] = toTodoResponse(&todo)
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"todos": todoResponses,
-	})
+	return c.JSON(http.StatusOK, todoResponses)
 }
 
 // Show retrieves a specific todo by ID

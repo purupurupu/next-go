@@ -40,7 +40,6 @@ type UpdateCategoryRequest struct {
 // CategoryResponse represents a category in API responses
 type CategoryResponse struct {
 	ID        int64  `json:"id"`
-	UserID    int64  `json:"user_id"`
 	Name      string `json:"name"`
 	Color     string `json:"color"`
 	TodoCount int    `json:"todo_count"`
@@ -52,7 +51,6 @@ type CategoryResponse struct {
 func toCategoryResponse(category *model.Category) CategoryResponse {
 	return CategoryResponse{
 		ID:        category.ID,
-		UserID:    category.UserID,
 		Name:      category.Name,
 		Color:     category.Color,
 		TodoCount: category.TodosCount,

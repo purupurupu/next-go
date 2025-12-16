@@ -39,15 +39,12 @@ type UpdateCommentRequest struct {
 
 // CommentResponse represents a comment in API responses
 type CommentResponse struct {
-	ID              int64               `json:"id"`
-	Content         string              `json:"content"`
-	UserID          int64               `json:"user_id"`
-	CommentableType string              `json:"commentable_type"`
-	CommentableID   int64               `json:"commentable_id"`
-	Editable        bool                `json:"editable"`
-	CreatedAt       string              `json:"created_at"`
-	UpdatedAt       string              `json:"updated_at"`
-	User            *CommentUserSummary `json:"user,omitempty"`
+	ID        int64               `json:"id"`
+	Content   string              `json:"content"`
+	Editable  bool                `json:"editable"`
+	CreatedAt string              `json:"created_at"`
+	UpdatedAt string              `json:"updated_at"`
+	User      *CommentUserSummary `json:"user,omitempty"`
 }
 
 // CommentUserSummary represents a user summary in comment responses
@@ -60,14 +57,11 @@ type CommentUserSummary struct {
 // toCommentResponse converts a model.Comment to CommentResponse
 func toCommentResponse(comment *model.Comment, currentUserID int64) CommentResponse {
 	resp := CommentResponse{
-		ID:              comment.ID,
-		Content:         comment.Content,
-		UserID:          comment.UserID,
-		CommentableType: comment.CommentableType,
-		CommentableID:   comment.CommentableID,
-		Editable:        comment.IsEditable() && comment.IsOwnedBy(currentUserID),
-		CreatedAt:       util.FormatRFC3339(comment.CreatedAt),
-		UpdatedAt:       util.FormatRFC3339(comment.UpdatedAt),
+		ID:        comment.ID,
+		Content:   comment.Content,
+		Editable:  comment.IsEditable() && comment.IsOwnedBy(currentUserID),
+		CreatedAt: util.FormatRFC3339(comment.CreatedAt),
+		UpdatedAt: util.FormatRFC3339(comment.UpdatedAt),
 	}
 
 	if comment.User != nil {
