@@ -458,43 +458,59 @@
 
 ---
 
-## Phase 7: Note・NoteRevision（低優先）
+## Phase 7: Note・NoteRevision（低優先） ✅ 完了
 
 ### モデル
-- [ ] `internal/model/note.go`
-  - [ ] Note構造体
-  - [ ] body_md（Markdown本文）
-  - [ ] body_plain（プレーンテキスト変換）
-- [ ] `internal/model/note_revision.go`
-  - [ ] NoteRevision構造体
-  - [ ] リビジョン管理（最大50件）
+- [x] `internal/model/note.go`
+  - [x] Note構造体
+  - [x] body_md（Markdown本文）
+  - [x] body_plain（プレーンテキスト変換）
+  - [x] pinned, archived_at, trashed_at フラグ
+  - [x] last_edited_at タイムスタンプ
+- [x] `internal/model/note_revision.go`
+  - [x] NoteRevision構造体
+  - [x] リビジョン管理（最大50件）
 
 ### Repository
-- [ ] `internal/repository/note.go`
-  - [ ] CRUD操作
-  - [ ] リビジョン保存
-  - [ ] リビジョン復元
-  - [ ] 古いリビジョン削除（50件超過時）
+- [x] `internal/repository/note.go`
+  - [x] CRUD操作
+  - [x] Search（フィルター・ページネーション）
+  - [x] SoftDelete / HardDelete
+- [x] `internal/repository/note_revision.go`
+  - [x] リビジョン保存
+  - [x] リビジョン一覧取得
+  - [x] 古いリビジョン削除（50件超過時）
+
+### Service
+- [x] `internal/service/note.go`
+  - [x] Create（初期リビジョン作成含む）
+  - [x] Update（body_md変更時のみリビジョン作成）
+  - [x] Delete（ソフト/ハードデリート）
+  - [x] RestoreRevision
+  - [x] stripMarkdown（body_plain生成）
+  - [x] enforceRevisionLimit（50件制限）
 
 ### Handler
-- [ ] `internal/handler/note.go`
-  - [ ] `GET /api/v1/notes` - 一覧
-  - [ ] `POST /api/v1/notes` - 作成
-  - [ ] `GET /api/v1/notes/:id` - 詳細
-  - [ ] `PATCH /api/v1/notes/:id` - 更新
-  - [ ] `DELETE /api/v1/notes/:id` - 削除
-  - [ ] `GET /api/v1/notes/:id/revisions` - リビジョン一覧
-  - [ ] `POST /api/v1/notes/:id/revisions/:revision_id/restore` - リビジョン復元
+- [x] `internal/handler/note.go`
+  - [x] `GET /api/v1/notes` - 一覧（フィルター・ページネーション）
+  - [x] `POST /api/v1/notes` - 作成
+  - [x] `GET /api/v1/notes/:id` - 詳細
+  - [x] `PATCH /api/v1/notes/:id` - 更新
+  - [x] `DELETE /api/v1/notes/:id` - 削除（?force=true で完全削除）
+  - [x] `GET /api/v1/notes/:id/revisions` - リビジョン一覧
+  - [x] `POST /api/v1/notes/:id/revisions/:revision_id/restore` - リビジョン復元
 
 ### バリデーション
-- [ ] title: 必須
-- [ ] body_md: 100,000文字以下
+- [x] title: 150文字以下（任意）
+- [x] body_md: 100,000文字以下（任意）
 
 ### テスト
-- [ ] Note CRUD テスト
-- [ ] リビジョン作成テスト
-- [ ] リビジョン復元テスト
-- [ ] 50件制限テスト
+- [x] Note CRUD テスト（一覧、作成、詳細、更新、削除）
+- [x] フィルターテスト（archived, trashed, pinned）
+- [x] リビジョン作成テスト（body_md変更時のみ）
+- [x] リビジョン復元テスト
+- [x] 50件制限テスト
+- [x] ユーザースコープテスト
 
 ### フロントエンド統合確認
 - [ ] ノート一覧
