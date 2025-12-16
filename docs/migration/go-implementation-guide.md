@@ -28,7 +28,7 @@
 ```go
 module todo-api
 
-go 1.22
+go 1.25
 
 require (
     github.com/labstack/echo/v4 v4.11.4
@@ -163,6 +163,7 @@ func main() {
     categoryHandler := handler.NewCategoryHandler(db)
     tagHandler := handler.NewTagHandler(db)
     commentHandler := handler.NewCommentHandler(db)
+    historyHandler := handler.NewHistoryHandler(db)
     noteHandler := handler.NewNoteHandler(db)
 
     // 認証ルート（公開）
@@ -720,58 +721,40 @@ import (
     "github.com/labstack/echo/v4"
 )
 
-type Response struct {
-    Status Status      `json:"status"`
-    Data   interface{} `json:"data"`
-    Meta   *Meta       `json:"meta,omitempty"`
-}
-
-type Status struct {
-    Code    int    `json:"code"`
-    Message string `json:"message"`
+// PaginatedResponse - ページネーション付きレスポンス
+type PaginatedResponse struct {
+    Data interface{} `json:"data"`
+    Meta Meta        `json:"meta"`
 }
 
 type Meta struct {
-    Total       int64 `json:"total"`
+    TotalCount  int64 `json:"total_count"`
     CurrentPage int   `json:"current_page"`
     TotalPages  int   `json:"total_pages"`
     PerPage     int   `json:"per_page"`
 }
 
+// Success - 単一リソースまたは一覧（フラット形式）
 func Success(c echo.Context, data interface{}) error {
-    return c.JSON(http.StatusOK, Response{
-        Status: Status{
-            Code:    http.StatusOK,
-            Message: "Success",
-        },
-        Data: data,
-    })
+    return c.JSON(http.StatusOK, data)
 }
 
-func Created(c echo.Context, data interface{}, message string) error {
-    return c.JSON(http.StatusCreated, Response{
-        Status: Status{
-            Code:    http.StatusCreated,
-            Message: message,
-        },
-        Data: data,
-    })
+// Created - 作成成功（フラット形式）
+func Created(c echo.Context, data interface{}) error {
+    return c.JSON(http.StatusCreated, data)
 }
 
+// Paginated - ページネーション付きレスポンス
 func Paginated(c echo.Context, data interface{}, total int64, page, perPage int) error {
     totalPages := int(total) / perPage
     if int(total)%perPage > 0 {
         totalPages++
     }
 
-    return c.JSON(http.StatusOK, Response{
-        Status: Status{
-            Code:    http.StatusOK,
-            Message: "Success",
-        },
+    return c.JSON(http.StatusOK, PaginatedResponse{
         Data: data,
-        Meta: &Meta{
-            Total:       total,
+        Meta: Meta{
+            TotalCount:  total,
             CurrentPage: page,
             TotalPages:  totalPages,
             PerPage:     perPage,
@@ -977,9 +960,7 @@ type CommentHandler struct {
 }
 
 type CommentRequest struct {
-    Comment struct {
-        Content string `json:"content" validate:"required,min=1,max=1000"`
-    } `json:"comment"`
+    Content string `json:"content" validate:"required,min=1,max=1000"`
 }
 
 // Update: 15分以内のみ編集可能
@@ -1013,7 +994,7 @@ func (h *CommentHandler) Update(c echo.Context) error {
         return err
     }
 
-    comment.Content = req.Comment.Content
+    comment.Content = req.Content
     if err := h.commentRepo.Update(comment); err != nil {
         return errors.InternalError()
     }

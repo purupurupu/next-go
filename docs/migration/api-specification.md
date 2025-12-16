@@ -20,24 +20,26 @@ X-API-Version: v1
 X-Request-Id: <uuid>
 ```
 
-### 成功レスポンス形式
+### 成功レスポンス形式（一覧）
+```json
+[
+  { "id": 1, ... },
+  { "id": 2, ... }
+]
+```
+
+### 成功レスポンス形式（単一リソース）
 ```json
 {
-  "status": {
-    "code": 200,
-    "message": "Success"
-  },
-  "data": { ... }
+  "id": 1,
+  "title": "...",
+  ...
 }
 ```
 
 ### ページネーション付きレスポンス
 ```json
 {
-  "status": {
-    "code": 200,
-    "message": "Success"
-  },
   "data": [ ... ],
   "meta": {
     "total": 100,
@@ -187,7 +189,7 @@ Todo一覧取得（ユーザースコープ）
           "filename": "list.pdf",
           "content_type": "application/pdf",
           "byte_size": 102400,
-          "url": "http://localhost:3001/rails/active_storage/blobs/..."
+          "url": "http://localhost:9000/todo-files/..."
         }
       ],
       "comments_count": 3,
@@ -303,17 +305,17 @@ Todo作成
 **リクエスト** (application/json)
 ```json
 {
-  "todo": {
-    "title": "New task",
-    "description": "Task description",
-    "priority": "high",
-    "status": "pending",
-    "due_date": "2025-01-20",
-    "category_id": 1,
-    "tag_ids": [1, 2, 3]
-  }
+  "title": "New task",
+  "description": "Task description",
+  "priority": 2,
+  "status": 0,
+  "due_date": "2025-01-20",
+  "category_id": 1,
+  "tag_ids": [1, 2, 3]
 }
 ```
+
+**注意**: priority/status は数値（0=low/pending, 1=medium/in_progress, 2=high/completed）
 
 **ファイル添付時** (multipart/form-data)
 ```
@@ -349,11 +351,9 @@ Todo更新
 **リクエスト**
 ```json
 {
-  "todo": {
-    "title": "Updated title",
-    "completed": true,
-    "status": "completed"
-  }
+  "title": "Updated title",
+  "completed": true,
+  "status": 2
 }
 ```
 
@@ -407,9 +407,7 @@ Todoのタグ更新
 **リクエスト**
 ```json
 {
-  "todo": {
-    "tag_ids": [1, 2, 3]
-  }
+  "tag_ids": [1, 2, 3]
 }
 ```
 
@@ -474,10 +472,8 @@ Todoのタグ更新
 **リクエスト**
 ```json
 {
-  "category": {
-    "name": "Personal",
-    "color": "#3498DB"
-  }
+  "name": "Personal",
+  "color": "#3498DB"
 }
 ```
 
@@ -530,10 +526,8 @@ Todoのタグ更新
 **リクエスト**
 ```json
 {
-  "tag": {
-    "name": "feature",
-    "color": "#2ECC71"
-  }
+  "name": "feature",
+  "color": "#2ECC71"
 }
 ```
 
@@ -582,9 +576,7 @@ Todoのタグ更新
 **リクエスト**
 ```json
 {
-  "comment": {
-    "content": "This is a new comment"
-  }
+  "content": "This is a new comment"
 }
 ```
 
@@ -600,9 +592,7 @@ Todoのタグ更新
 **リクエスト**
 ```json
 {
-  "comment": {
-    "content": "Updated comment content"
-  }
+  "content": "Updated comment content"
 }
 ```
 
@@ -691,11 +681,8 @@ Note作成
 **リクエスト**
 ```json
 {
-  "note": {
-    "title": "New Note",
-    "body_md": "# Content\n\nMarkdown content here",
-    "pinned": false
-  }
+  "title": "New Note",
+  "body_md": "# Content\n\nMarkdown content here"
 }
 ```
 
