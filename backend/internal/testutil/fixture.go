@@ -21,22 +21,25 @@ import (
 
 // TestFixture holds all dependencies needed for handler tests
 type TestFixture struct {
-	T               *testing.T
-	DB              *gorm.DB
-	Echo            *echo.Echo
-	UserRepo        *repository.UserRepository
-	DenylistRepo    *repository.JwtDenylistRepository
-	TodoRepo        *repository.TodoRepository
-	CategoryRepo    *repository.CategoryRepository
-	TagRepo         *repository.TagRepository
-	CommentRepo     *repository.CommentRepository
-	HistoryRepo     *repository.TodoHistoryRepository
-	AuthHandler     *handler.AuthHandler
-	TodoHandler     *handler.TodoHandler
-	CategoryHandler *handler.CategoryHandler
-	TagHandler      *handler.TagHandler
-	CommentHandler  *handler.CommentHandler
-	HistoryHandler  *handler.TodoHistoryHandler
+	T                *testing.T
+	DB               *gorm.DB
+	Echo             *echo.Echo
+	UserRepo         *repository.UserRepository
+	DenylistRepo     *repository.JwtDenylistRepository
+	TodoRepo         *repository.TodoRepository
+	CategoryRepo     *repository.CategoryRepository
+	TagRepo          *repository.TagRepository
+	CommentRepo      *repository.CommentRepository
+	HistoryRepo      *repository.TodoHistoryRepository
+	NoteRepo         *repository.NoteRepository
+	NoteRevisionRepo *repository.NoteRevisionRepository
+	AuthHandler      *handler.AuthHandler
+	TodoHandler      *handler.TodoHandler
+	CategoryHandler  *handler.CategoryHandler
+	TagHandler       *handler.TagHandler
+	CommentHandler   *handler.CommentHandler
+	HistoryHandler   *handler.TodoHistoryHandler
+	NoteHandler      *handler.NoteHandler
 }
 
 // SetupTestFixture creates a new TestFixture with all dependencies initialized
@@ -51,9 +54,12 @@ func SetupTestFixture(t *testing.T) *TestFixture {
 	tagRepo := repository.NewTagRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
 	historyRepo := repository.NewTodoHistoryRepository(db)
+	noteRepo := repository.NewNoteRepository(db)
+	noteRevisionRepo := repository.NewNoteRevisionRepository(db)
 
 	// Initialize services
 	todoService := service.NewTodoService(todoRepo, categoryRepo, historyRepo)
+	noteService := service.NewNoteService(noteRepo, noteRevisionRepo)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, TestConfig)
@@ -62,28 +68,32 @@ func SetupTestFixture(t *testing.T) *TestFixture {
 	tagHandler := handler.NewTagHandler(tagRepo)
 	commentHandler := handler.NewCommentHandler(commentRepo, todoRepo)
 	historyHandler := handler.NewTodoHistoryHandler(historyRepo, todoRepo)
+	noteHandler := handler.NewNoteHandler(noteService, noteRepo, noteRevisionRepo)
 
 	t.Cleanup(func() {
 		CleanupTestDB(db)
 	})
 
 	return &TestFixture{
-		T:               t,
-		DB:              db,
-		Echo:            e,
-		UserRepo:        userRepo,
-		DenylistRepo:    denylistRepo,
-		TodoRepo:        todoRepo,
-		CategoryRepo:    categoryRepo,
-		TagRepo:         tagRepo,
-		CommentRepo:     commentRepo,
-		HistoryRepo:     historyRepo,
-		AuthHandler:     authHandler,
-		TodoHandler:     todoHandler,
-		CategoryHandler: categoryHandler,
-		TagHandler:      tagHandler,
-		CommentHandler:  commentHandler,
-		HistoryHandler:  historyHandler,
+		T:                t,
+		DB:               db,
+		Echo:             e,
+		UserRepo:         userRepo,
+		DenylistRepo:     denylistRepo,
+		TodoRepo:         todoRepo,
+		CategoryRepo:     categoryRepo,
+		TagRepo:          tagRepo,
+		CommentRepo:      commentRepo,
+		HistoryRepo:      historyRepo,
+		NoteRepo:         noteRepo,
+		NoteRevisionRepo: noteRevisionRepo,
+		AuthHandler:      authHandler,
+		TodoHandler:      todoHandler,
+		CategoryHandler:  categoryHandler,
+		TagHandler:       tagHandler,
+		CommentHandler:   commentHandler,
+		HistoryHandler:   historyHandler,
+		NoteHandler:      noteHandler,
 	}
 }
 
@@ -373,4 +383,131 @@ func CommentPath(todoID, commentID int64) string {
 // TodoHistoriesPath returns the path for todo histories
 func TodoHistoriesPath(todoID int64) string {
 	return fmt.Sprintf("/api/v1/todos/%d/histories", todoID)
+}
+
+// =============================================================================
+// Note Helpers
+// =============================================================================
+
+// CreateNote creates a test note for a user (with initial revision)
+func (f *TestFixture) CreateNote(userID int64, title, bodyMD string) *model.Note {
+	note := &model.Note{
+		UserID:       userID,
+		Title:        &title,
+		BodyMD:       &bodyMD,
+		LastEditedAt: time.Now(),
+	}
+	require.NoError(f.T, f.DB.Create(note).Error)
+
+	// Create initial revision (same as service.Create)
+	revision := &model.NoteRevision{
+		NoteID: note.ID,
+		UserID: userID,
+		Title:  &title,
+		BodyMD: &bodyMD,
+	}
+	require.NoError(f.T, f.DB.Create(revision).Error)
+
+	return note
+}
+
+// CreateNoteWithOptions creates a test note with options
+type NoteOptions struct {
+	Title      *string
+	BodyMD     *string
+	Pinned     bool
+	ArchivedAt *time.Time
+	TrashedAt  *time.Time
+}
+
+func (f *TestFixture) CreateNoteWithOptions(userID int64, opts NoteOptions) *model.Note {
+	note := &model.Note{
+		UserID:       userID,
+		Title:        opts.Title,
+		BodyMD:       opts.BodyMD,
+		Pinned:       opts.Pinned,
+		ArchivedAt:   opts.ArchivedAt,
+		TrashedAt:    opts.TrashedAt,
+		LastEditedAt: time.Now(),
+	}
+	require.NoError(f.T, f.DB.Create(note).Error)
+	return note
+}
+
+// NotePath returns the path for a specific note
+func NotePath(id int64) string {
+	return fmt.Sprintf("/api/v1/notes/%d", id)
+}
+
+// NoteRevisionsPath returns the path for note revisions
+func NoteRevisionsPath(noteID int64) string {
+	return fmt.Sprintf("/api/v1/notes/%d/revisions", noteID)
+}
+
+// RestoreRevisionPath returns the path for restoring a revision
+func RestoreRevisionPath(noteID, revisionID int64) string {
+	return fmt.Sprintf("/api/v1/notes/%d/revisions/%d/restore", noteID, revisionID)
+}
+
+// CallAuthNote calls a note handler with authentication
+func (f *TestFixture) CallAuthNote(token, method, path, body string, handlerFunc echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
+	var req *http.Request
+	if body != "" {
+		req = httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	} else {
+		req = httptest.NewRequest(method, path, nil)
+	}
+	req.Header.Set("Authorization", token)
+
+	rec := httptest.NewRecorder()
+	c := f.Echo.NewContext(req, rec)
+
+	// Extract path params for notes (strip query params first)
+	// Patterns:
+	// /api/v1/notes/:id
+	// /api/v1/notes/:id/revisions
+	// /api/v1/notes/:id/revisions/:revision_id/restore
+	pathOnly := path
+	if idx := strings.Index(path, "?"); idx != -1 {
+		pathOnly = path[:idx]
+	}
+
+	if strings.Contains(pathOnly, "/notes/") {
+		parts := strings.Split(pathOnly, "/notes/")
+		if len(parts) > 1 {
+			subPath := parts[1]
+
+			if strings.Contains(subPath, "/revisions/") && strings.Contains(subPath, "/restore") {
+				// /api/v1/notes/{id}/revisions/{revision_id}/restore
+				revisionParts := strings.Split(subPath, "/revisions/")
+				noteID := revisionParts[0]
+				restoreParts := strings.Split(revisionParts[1], "/restore")
+				revisionID := restoreParts[0]
+				c.SetParamNames("id", "revision_id")
+				c.SetParamValues(noteID, revisionID)
+			} else if strings.Contains(subPath, "/revisions") {
+				// /api/v1/notes/{id}/revisions
+				revisionParts := strings.Split(subPath, "/revisions")
+				noteID := revisionParts[0]
+				c.SetParamNames("id")
+				c.SetParamValues(noteID)
+			} else {
+				// /api/v1/notes/{id}
+				c.SetParamNames("id")
+				c.SetParamValues(subPath)
+			}
+		}
+	}
+
+	authMiddleware := middleware.JWTAuth(TestConfig, f.UserRepo, f.DenylistRepo)
+	wrappedHandler := authMiddleware(handlerFunc)
+	err := wrappedHandler(c)
+
+	// Call error handler if handler returned an error (mimics Echo server behavior)
+	if err != nil {
+		f.Echo.HTTPErrorHandler(err, c)
+	}
+
+	return rec, err
 }

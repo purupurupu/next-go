@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"todo-api/internal/config"
+	"todo-api/internal/errors"
 	"todo-api/internal/model"
 	"todo-api/internal/validator"
 )
@@ -51,6 +52,8 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 		&model.TodoTag{},
 		&model.Comment{},
 		&model.TodoHistory{},
+		&model.Note{},
+		&model.NoteRevision{},
 	)
 	require.NoError(t, err)
 
@@ -60,6 +63,8 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 // CleanupTestDB cleans up test data
 func CleanupTestDB(db *gorm.DB) {
 	// Delete in order respecting foreign key constraints
+	db.Exec("DELETE FROM note_revisions")
+	db.Exec("DELETE FROM notes")
 	db.Exec("DELETE FROM comments")
 	db.Exec("DELETE FROM todo_histories")
 	db.Exec("DELETE FROM todo_tags")
@@ -73,6 +78,7 @@ func CleanupTestDB(db *gorm.DB) {
 // SetupEcho creates an Echo instance for testing
 func SetupEcho() *echo.Echo {
 	e := echo.New()
+	e.HTTPErrorHandler = errors.ErrorHandler
 	validator.SetupValidator(e)
 	return e
 }
