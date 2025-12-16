@@ -34,11 +34,13 @@ export interface NotePayload {
 }
 
 export async function createNote(payload: NotePayload = {}): Promise<Note> {
-  return apiClient.post<Note>("/notes", { note: payload });
+  const response = await apiClient.post<{ data: Note }>("/notes", { note: payload });
+  return response.data;
 }
 
 export async function updateNote(id: number, payload: NotePayload): Promise<Note> {
-  return apiClient.patch<Note>(`/notes/${id}`, { note: payload });
+  const response = await apiClient.patch<{ data: Note }>(`/notes/${id}`, { note: payload });
+  return response.data;
 }
 
 export async function deleteNote(id: number, force = false): Promise<void> {
@@ -51,5 +53,6 @@ export async function fetchRevisions(noteId: number): Promise<NoteRevisionsRespo
 }
 
 export async function restoreRevision(noteId: number, revisionId: number): Promise<Note> {
-  return apiClient.post<Note>(`/notes/${noteId}/revisions/${revisionId}/restore`);
+  const response = await apiClient.post<{ data: Note }>(`/notes/${noteId}/revisions/${revisionId}/restore`);
+  return response.data;
 }

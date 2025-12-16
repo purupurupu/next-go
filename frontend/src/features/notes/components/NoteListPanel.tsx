@@ -65,7 +65,7 @@ export function NoteListPanel({
         )}
         {notes.map((note) => (
           <button
-            key={note.id}
+            key={`note-${note.id}`}
             type="button"
             onClick={() => onSelect(note.id)}
             className={`w-full text-left rounded-md border px-3 py-2 transition ${
