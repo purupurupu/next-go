@@ -61,6 +61,8 @@ func main() {
 			&model.Comment{},
 			&model.TodoHistory{},
 			&model.File{},
+			&model.Note{},
+			&model.NoteRevision{},
 		); err != nil {
 			log.Fatal().Err(err).Msg("Failed to auto migrate models")
 		}
@@ -114,11 +116,14 @@ func main() {
 	commentRepo := repository.NewCommentRepository(db)
 	historyRepo := repository.NewTodoHistoryRepository(db)
 	fileRepo := repository.NewFileRepository(db)
+	noteRepo := repository.NewNoteRepository(db)
+	noteRevisionRepo := repository.NewNoteRevisionRepository(db)
 
 	// Initialize services
 	todoService := service.NewTodoService(todoRepo, categoryRepo, historyRepo)
 	thumbnailService := service.NewThumbnailService(s3Storage)
 	fileService := service.NewFileService(fileRepo, todoRepo, s3Storage, thumbnailService)
+	noteService := service.NewNoteService(noteRepo, noteRevisionRepo)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(userRepo, denylistRepo, cfg)
@@ -128,6 +133,7 @@ func main() {
 	commentHandler := handler.NewCommentHandler(commentRepo, todoRepo)
 	historyHandler := handler.NewTodoHistoryHandler(historyRepo, todoRepo)
 	fileHandler := handler.NewFileHandler(fileService)
+	noteHandler := handler.NewNoteHandler(noteService, noteRepo, noteRevisionRepo)
 
 	// Auth routes (public)
 	auth := e.Group("/auth")
@@ -177,6 +183,15 @@ func main() {
 	api.GET("/todos/:todo_id/files/:file_id/thumb", fileHandler.DownloadThumb)
 	api.GET("/todos/:todo_id/files/:file_id/medium", fileHandler.DownloadMedium)
 	api.DELETE("/todos/:todo_id/files/:file_id", fileHandler.Delete)
+
+	// Note routes
+	api.GET("/notes", noteHandler.List)
+	api.POST("/notes", noteHandler.Create)
+	api.GET("/notes/:id", noteHandler.Show)
+	api.PATCH("/notes/:id", noteHandler.Update)
+	api.DELETE("/notes/:id", noteHandler.Delete)
+	api.GET("/notes/:id/revisions", noteHandler.ListRevisions)
+	api.POST("/notes/:id/revisions/:revision_id/restore", noteHandler.RestoreRevision)
 
 	// Log startup information
 	log.Info().
