@@ -19,10 +19,6 @@ export function createOptimisticTodo(
     description: data.description || null,
     category: null, // Will be updated when real todo is returned from server
     tags: [], // Will be updated when real todo is returned from server
-    files: [], // Will be updated when real todo is returned from server
-    comments_count: 0,
-    latest_comments: [],
-    history_count: 0,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

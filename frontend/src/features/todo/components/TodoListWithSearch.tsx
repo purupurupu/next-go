@@ -252,7 +252,6 @@ export function TodoListWithSearch() {
           open={!!editingTodo}
           onOpenChange={(open) => !open && setEditingTodo(null)}
           onSubmit={handleUpdateTodo}
-          onFileDelete={(fileId) => handleDeleteFile(editingTodo.id, fileId)}
         />
       )}
     </div>

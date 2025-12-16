@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Calendar, Clock, Edit, Trash2, ChevronDown, ChevronUp, MessageSquare, History } from "lucide-react";
+import { Calendar, Clock, Edit, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import { isOverdue, isDueToday, isDueSoon } from "@/lib/utils";
 
 import type { Todo } from "@/features/todo/types/todo";
 import { TagBadge } from "@/features/tag/components/TagBadge";
-import { AttachmentList } from "@/features/todo/components/AttachmentList";
 import { HighlightedText } from "@/features/todo/components/HighlightedText";
 
 interface TodoItemProps {
@@ -240,37 +239,6 @@ export function TodoItem({ todo, onToggleComplete, onEdit, onDelete }: TodoItemP
               </div>
             )}
 
-            {todo.files && todo.files.length > 0 && (
-              <div className="mt-2">
-                <AttachmentList
-                  todoId={todo.id}
-                  files={todo.files}
-                  compact
-                />
-              </div>
-            )}
-
-            {/* コメントと履歴の件数表示 */}
-            <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
-              {todo.comments_count > 0 && (
-                <div className="flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3" />
-                  <span>
-                    {todo.comments_count}
-                    件のコメント
-                  </span>
-                </div>
-              )}
-              {todo.history_count > 0 && (
-                <div className="flex items-center gap-1">
-                  <History className="h-3 w-3" />
-                  <span>
-                    {todo.history_count}
-                    件の変更履歴
-                  </span>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </CardContent>

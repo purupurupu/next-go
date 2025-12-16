@@ -45,10 +45,6 @@ export interface Todo extends BaseEntity {
   description: string | null;
   category: TodoCategoryRef | null;
   tags: TodoTagRef[];
-  files: TodoFile[];
-  comments_count: number;
-  latest_comments: unknown[]; // 最新のコメント（詳細表示用）
-  history_count: number;
   highlights?: {
     title?: Array<{ start: number; end: number; matched_text: string }>;
     description?: Array<{ start: number; end: number; matched_text: string }>;

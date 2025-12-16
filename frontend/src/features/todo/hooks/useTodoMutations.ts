@@ -161,29 +161,11 @@ export function useTodoMutations({
   const deleteTodoFile = useCallback(async (todoId: number, fileId: string | number) => {
     setError(null);
 
-    // Store original todos for rollback
-    const originalTodos = allTodos;
-
     try {
-      // Optimistic update: remove file from the todo
-      setAllTodos((prev) => prev.map((todo) => {
-        if (todo.id === todoId) {
-          return {
-            ...todo,
-            files: todo.files.filter((f) => f.id !== fileId),
-          };
-        }
-        return todo;
-      }));
-
       // Call the API to delete the file
       await todoApiClient.deleteTodoFile(todoId, fileId);
-
       toast.success("ファイルを削除しました");
     } catch (error) {
-      // Revert optimistic update on error
-      setAllTodos(originalTodos);
-
       const errorMessage = error instanceof ApiError
         ? error.message
         : "Failed to delete file";
@@ -192,7 +174,7 @@ export function useTodoMutations({
         description: errorMessage,
       });
     }
-  }, [allTodos, setAllTodos, setError]);
+  }, [setError]);
 
   return {
     createTodo,

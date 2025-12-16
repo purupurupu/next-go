@@ -30,7 +30,6 @@ import { useCategories } from "@/features/category/hooks/useCategories";
 import { useTags } from "@/features/tag/hooks/useTags";
 import { TagSelector } from "@/features/tag/components/TagSelector";
 import { FileUpload } from "@/features/todo/components/FileUpload";
-import { AttachmentList } from "@/features/todo/components/AttachmentList";
 import { CommentList } from "@/features/comment/components/CommentList";
 import { HistoryList } from "@/features/history/components/HistoryList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,10 +41,9 @@ interface TodoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CreateTodoData, files?: File[]) => Promise<void>;
-  onFileDelete?: (fileId: string | number) => void;
 }
 
-export function TodoForm({ mode, todo, open, onOpenChange, onSubmit, onFileDelete }: TodoFormProps) {
+export function TodoForm({ mode, todo, open, onOpenChange, onSubmit }: TodoFormProps) {
   const { categories, fetchCategories } = useCategories(false);
   const { tags, fetchTags } = useTags(false);
   const [title, setTitle] = useState(todo?.title || "");
@@ -321,14 +319,6 @@ export function TodoForm({ mode, todo, open, onOpenChange, onSubmit, onFileDelet
 
             <div className="space-y-2">
               <label className="text-sm font-medium">添付ファイル</label>
-              {mode === "edit" && todo && todo.files && todo.files.length > 0 && (
-                <AttachmentList
-                  todoId={todo.id}
-                  files={todo.files}
-                  onDelete={onFileDelete}
-                  disabled={isSubmitting}
-                />
-              )}
               <FileUpload
                 onFileSelect={setSelectedFiles}
                 existingFiles={selectedFiles}
